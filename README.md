@@ -3,6 +3,7 @@
 [![NuGet Version](https://img.shields.io/nuget/v/Joker.Api)](https://www.nuget.org/packages/Joker.Api)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/Joker.Api)](https://www.nuget.org/packages/Joker.Api)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/panoramicdata/Joker.Api/publish-nuget.yml)](https://github.com/panoramicdata/Joker.Api/actions)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/c790c2232f2745eca8b5b47a145e37b9)](https://app.codacy.com/gh/panoramicdata/Joker.Api/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A comprehensive, modern .NET library for interacting with the Joker DMAPI API. This library provides full coverage of the Joker DMAPI API with a clean, intuitive interface using modern C# patterns and best practices.
