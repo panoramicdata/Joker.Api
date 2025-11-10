@@ -74,7 +74,6 @@ jobs:
 
           var client = new JokerClient(new JokerClientOptions
           {
-              BaseUrl = "https://your-instance.joker.com",
               ApiKey = "your-api-key"
           });
 

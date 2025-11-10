@@ -6,14 +6,14 @@ namespace Joker.Api;
 public class JokerClientOptions
 {
 	/// <summary>
-	/// Gets the base URL for the Joker API instance
-	/// </summary>
-	public required string BaseUrl { get; init; }
-
-	/// <summary>
 	/// Gets the API key for authentication
 	/// </summary>
 	public required string ApiKey { get; init; }
+
+	/// <summary>
+	/// Gets the DMAPI base URL (defaults to https://dmapi.joker.com)
+	/// </summary>
+	public string BaseUrl { get; init; } = "https://dmapi.joker.com";
 
 	/// <summary>
 	/// Gets the request timeout

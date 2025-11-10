@@ -10,7 +10,6 @@ public class JokerClientTests
 		// Arrange
 		var options = new JokerClientOptions
 		{
-			BaseUrl = "https://test.joker.com",
 			ApiKey = "test-api-key"
 		};
 

@@ -42,7 +42,6 @@ using Joker.Api;
 
 var options = new JokerClientOptions
 {
-    BaseUrl = "https://your-instance.joker.com",
     ApiKey = "your-api-key"
 };
 
@@ -66,7 +65,6 @@ var cancellationToken = cts.Token;
 ```csharp
 var options = new JokerClientOptions
 {
-    BaseUrl = "https://your-instance.joker.com",
     ApiKey = "your-api-key",
     
     // Custom timeout
@@ -95,7 +93,6 @@ var logger = serviceProvider.GetRequiredService<ILogger<JokerClient>>();
 
 var options = new JokerClientOptions
 {
-    BaseUrl = "https://your-instance.joker.com",
     ApiKey = "your-api-key",
     Logger = logger,
     EnableRequestLogging = true,
@@ -139,10 +136,10 @@ The `JokerClientOptions` class provides extensive configuration:
 public class JokerClientOptions
 {
     // Required authentication
-    public required string BaseUrl { get; init; }
     public required string ApiKey { get; init; }
     
     // Optional configuration
+    public string BaseUrl { get; init; } = "https://dmapi.joker.com";
     public TimeSpan RequestTimeout { get; init; } = TimeSpan.FromSeconds(30);
     public int MaxRetryAttempts { get; init; } = 3;
     public TimeSpan RetryDelay { get; init; } = TimeSpan.FromSeconds(1);
@@ -175,8 +172,7 @@ We welcome contributions from the community! Here's how you can help:
    ```bash
    cd Joker.Api.Test
    dotnet user-secrets init
-   dotnet user-secrets set "JokerApi:BaseUrl" "your-test-instance-url"
-   dotnet user-secrets set "JokerApi:ApiKey" "your-test-api-key"
+   dotnet user-secrets set "JokerApi:ApiKey" "your-api-key"
    ```
 
 4. **Build and test**:
