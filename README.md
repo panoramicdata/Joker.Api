@@ -11,6 +11,7 @@ A comprehensive, modern .NET library for interacting with the Joker DMAPI API. T
 ## Features
 
 - 🎯 **Complete API Coverage** - Full support for all Joker DMAPI endpoints
+- 🔓 **SVC Support** - DNS management without reseller account (Dynamic DNS)
 - 🚀 **Modern .NET** - Built for .NET 9 with modern C# features
 - 🔒 **Type Safety** - Strongly typed models and responses
 - 📝 **Comprehensive Logging** - Built-in logging and request/response interception
@@ -35,11 +36,63 @@ Install-Package Joker.Api
 
 ## Quick Start
 
-### 1. Authentication Setup
+### Authentication Methods
 
-The Joker DMAPI supports two authentication methods:
+Joker.Api supports multiple authentication methods:
 
-#### Option 1: API Key (Recommended for automated access)
+1. **SVC (Dynamic DNS)** - For DNS management without a reseller account
+2. **DMAPI with API Key** - Recommended for reseller accounts
+3. **DMAPI with Username/Password** - Alternative for reseller accounts
+
+### 1. SVC Client (DNS Management - No Reseller Account Required)
+
+Perfect for automating DNS updates, ACME DNS-01 challenges (Let's Encrypt), and managing DNS records.
+
+```csharp
+using Joker.Api;
+using Joker.Api.Models;
+
+// Get SVC credentials from Joker.com dashboard:
+// 1. Go to DNS settings for your domain
+// 2. Enable Dynamic DNS
+// 3. Copy the shown username and password
+
+var options = new JokerSvcClientOptions
+{
+    Domain = "yourdomain.com",
+    SvcUsername = "svc-username-from-dashboard",
+    SvcPassword = "svc-password-from-dashboard"
+};
+
+using var client = new JokerSvcClient(options);
+
+// Add a TXT record (e.g., for Let's Encrypt DNS-01 challenge)
+await client.SetTxtRecordAsync(
+    "_acme-challenge", 
+    "verification-token-here",
+    ttl: 300,
+    cancellationToken);
+
+// Get current DNS zone
+var zone = await client.GetDnsZoneAsync(cancellationToken);
+Console.WriteLine($"Current DNS zone:\n{zone.Body}");
+
+// Delete a TXT record
+await client.DeleteTxtRecordAsync("_acme-challenge", cancellationToken);
+
+// Set multiple DNS records at once
+var records = new[]
+{
+    DnsRecord.CreateARecord("www", "123.45.67.89"),
+    DnsRecord.CreateCnameRecord("blog", "blog.provider.com"),
+    DnsRecord.CreateTxtRecord("@", "v=spf1 include:_spf.provider.com ~all")
+};
+await client.SetDnsZoneAsync(records, cancellationToken);
+```
+
+### 2. DMAPI Client (Reseller Account Required)
+
+#### Option 1: API Key (Recommended for reseller automation)
 
 ```csharp
 using Joker.Api;
@@ -52,7 +105,7 @@ var options = new JokerClientOptions
 var client = new JokerClient(options);
 ```
 
-#### Option 2: Username and Password
+#### Option 2: Username and Password (Reseller accounts)
 
 ```csharp
 using Joker.Api;
@@ -66,17 +119,19 @@ var options = new JokerClientOptions
 var client = new JokerClient(options);
 ```
 
-### 2. Basic Usage Examples
+### 3. Basic Usage Examples
 
 ```csharp
 // Use a CancellationToken for all async operations
 using var cts = new CancellationTokenSource();
 var cancellationToken = cts.Token;
 
-// Example API calls will be added as the library is developed
+// DMAPI operations (reseller account required)
+var loginResponse = await client.LoginAsync(cancellationToken);
+Console.WriteLine($"Logged in with session: {loginResponse.AuthSid}");
 ```
 
-### 3. Advanced Configuration
+### 4. Advanced Configuration
 
 #### Custom HTTP Configuration
 
