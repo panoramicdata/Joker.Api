@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Joker.Api.Models;
 
 namespace Joker.Api;
 
@@ -10,6 +11,7 @@ public class JokerClient : IDisposable
 	private readonly HttpClient _httpClient;
 	private readonly JokerClientOptions _options;
 	private bool _disposed;
+	private string? _authSid;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="JokerClient"/> class
@@ -18,6 +20,7 @@ public class JokerClient : IDisposable
 	public JokerClient(JokerClientOptions options)
 	{
 		ArgumentNullException.ThrowIfNull(options);
+		options.Validate();
 
 		_options = options;
 		_httpClient = new HttpClient
@@ -26,72 +29,167 @@ public class JokerClient : IDisposable
 			Timeout = options.RequestTimeout
 		};
 
-		_httpClient.DefaultRequestHeaders.Add("X-API-Key", options.ApiKey);
 		_httpClient.DefaultRequestHeaders.Add("User-Agent", "Joker.Api .NET Client");
 	}
 
 	/// <summary>
-	/// Performs a GET request to the specified endpoint
+	/// Authenticates with the DMAPI and obtains a session ID
 	/// </summary>
-	/// <typeparam name="T">The type of response expected</typeparam>
-	/// <param name="endpoint">The API endpoint</param>
 	/// <param name="cancellationToken">Cancellation token</param>
-	/// <returns>The deserialized response</returns>
-	public async Task<T> GetAsync<T>(string endpoint, CancellationToken cancellationToken = default)
+	/// <returns>The authentication response with session ID</returns>
+	public async Task<DmapiResponse> LoginAsync(CancellationToken cancellationToken = default)
 	{
-		if (_options.EnableRequestLogging)
+		var parameters = new Dictionary<string, string>();
+
+		if (!string.IsNullOrWhiteSpace(_options.ApiKey))
 		{
-			_options.Logger?.LogDebug("GET {Endpoint}", endpoint);
+			parameters["api-key"] = _options.ApiKey;
+		}
+		else
+		{
+			parameters["username"] = _options.Username!;
+			parameters["password"] = _options.Password!;
 		}
 
-		var response = await _httpClient.GetAsync(endpoint, cancellationToken).ConfigureAwait(false);
-		response.EnsureSuccessStatusCode();
+		var response = await SendRequestAsync("login", parameters, cancellationToken).ConfigureAwait(false);
 
+		if (response.IsSuccess && !string.IsNullOrWhiteSpace(response.AuthSid))
+		{
+			_authSid = response.AuthSid;
+		}
+
+		return response;
+	}
+
+	/// <summary>
+	/// Sends a request to the DMAPI
+	/// </summary>
+	/// <param name="requestName">The request name (e.g., "login", "query-domain-list")</param>
+	/// <param name="parameters">Request parameters</param>
+	/// <param name="cancellationToken">Cancellation token</param>
+	/// <returns>The parsed DMAPI response</returns>
+	private async Task<DmapiResponse> SendRequestAsync(
+		string requestName,
+		Dictionary<string, string>? parameters,
+		CancellationToken cancellationToken)
+	{
+		// Build query string
+		var queryParams = new List<string>();
+		
+		if (parameters != null)
+		{
+			foreach (var param in parameters)
+			{
+				queryParams.Add($"{Uri.EscapeDataString(param.Key)}={Uri.EscapeDataString(param.Value)}");
+			}
+		}
+
+		var url = $"/request/{requestName}";
+		if (queryParams.Count > 0)
+		{
+			url += "?" + string.Join("&", queryParams);
+		}
+
+		if (_options.EnableRequestLogging)
+		{
+			_options.Logger?.LogDebug("DMAPI Request: {Method} {Url}", "GET", url);
+		}
+
+		var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
 		var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
 		if (_options.EnableResponseLogging)
 		{
-			_options.Logger?.LogDebug("Response: {Content}", content);
+			_options.Logger?.LogDebug("DMAPI Response: {Content}", content);
 		}
 
-		return System.Text.Json.JsonSerializer.Deserialize<T>(content)
-			?? throw new InvalidOperationException("Failed to deserialize response");
+		return ParseDmapiResponse(content);
 	}
 
 	/// <summary>
-	/// Performs a POST request to the specified endpoint
+	/// Parses the DMAPI text-based response format
 	/// </summary>
-	/// <typeparam name="TRequest">The type of request body</typeparam>
-	/// <typeparam name="TResponse">The type of response expected</typeparam>
-	/// <param name="endpoint">The API endpoint</param>
-	/// <param name="request">The request body</param>
-	/// <param name="cancellationToken">Cancellation token</param>
-	/// <returns>The deserialized response</returns>
-	public async Task<TResponse> PostAsync<TRequest, TResponse>(
-		string endpoint,
-		TRequest request,
-		CancellationToken cancellationToken = default)
+	/// <param name="content">The raw response content</param>
+	/// <returns>Parsed DMAPI response</returns>
+	private static DmapiResponse ParseDmapiResponse(string content)
 	{
-		if (_options.EnableRequestLogging)
+		var response = new DmapiResponse();
+		var lines = content.Split('\n');
+		var bodyStarted = false;
+		var bodyLines = new List<string>();
+
+		foreach (var line in lines)
 		{
-			_options.Logger?.LogDebug("POST {Endpoint}", endpoint);
+			var trimmedLine = line.TrimEnd('\r');
+
+			// Empty line separates headers from body
+			if (string.IsNullOrWhiteSpace(trimmedLine))
+			{
+				bodyStarted = true;
+				continue;
+			}
+
+			if (!bodyStarted)
+			{
+				// Parse header line
+				var colonIndex = trimmedLine.IndexOf(':');
+				if (colonIndex > 0)
+				{
+					var headerName = trimmedLine[..colonIndex].Trim();
+					var headerValue = trimmedLine[(colonIndex + 1)..].Trim();
+
+					response.Headers[headerName] = headerValue;
+
+					// Map known headers to properties
+					switch (headerName.ToLowerInvariant())
+					{
+						case "auth-sid":
+							response.AuthSid = headerValue;
+							break;
+						case "uid":
+							response.Uid = headerValue;
+							break;
+						case "tracking-id":
+							response.TrackingId = headerValue;
+							break;
+						case "status-code":
+							_ = int.TryParse(headerValue, out var statusCode);
+							response.StatusCode = statusCode;
+							break;
+						case "status-text":
+							response.StatusText = headerValue;
+							break;
+						case "result":
+							response.Result = headerValue;
+							break;
+						case "proc-id":
+							response.ProcId = headerValue;
+							break;
+						case "account-balance":
+							response.AccountBalance = headerValue;
+							break;
+						case "error":
+							response.Errors.Add(headerValue);
+							break;
+						case "warning":
+							response.Warnings.Add(headerValue);
+							break;
+					}
+				}
+			}
+			else
+			{
+				// Collect body lines
+				bodyLines.Add(trimmedLine);
+			}
 		}
 
-		var json = System.Text.Json.JsonSerializer.Serialize(request);
-		var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-
-		var response = await _httpClient.PostAsync(endpoint, content, cancellationToken).ConfigureAwait(false);
-		response.EnsureSuccessStatusCode();
-
-		var responseContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-		if (_options.EnableResponseLogging)
+		if (bodyLines.Count > 0)
 		{
-			_options.Logger?.LogDebug("Response: {Content}", responseContent);
+			response.Body = string.Join("\n", bodyLines);
 		}
 
-		return System.Text.Json.JsonSerializer.Deserialize<TResponse>(responseContent)
-			?? throw new InvalidOperationException("Failed to deserialize response");
+		return response;
 	}
 
 	/// <summary>
