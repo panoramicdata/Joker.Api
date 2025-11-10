@@ -1,7 +1,7 @@
 [*]
-# VSSPELL: Spell checker settings from Halo.Api
-vsspell_section_id = 380de64fe2c54b63871cbe33f596d333
-vsspell_ignored_words_380de64fe2c54b63871cbe33f596d333 = File:Halo.Api.dic
+# VSSPELL: Spell checker settings from Joker.Api
+vsspell_section_id = joker_api_spell_check
+vsspell_ignored_words_joker_api_spell_check = File:Joker.Api.dic
 
 # Remove the line below if you want to inherit .editorconfig settings from higher directories
 root = true
