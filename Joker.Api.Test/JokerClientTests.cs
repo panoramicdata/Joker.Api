@@ -5,12 +5,29 @@ namespace Joker.Api.Test;
 public class JokerClientTests
 {
 	[Fact]
-	public void Constructor_WithValidOptions_CreatesClient()
+	public void Constructor_WithValidApiKey_CreatesClient()
 	{
 		// Arrange
 		var options = new JokerClientOptions
 		{
 			ApiKey = "test-api-key"
+		};
+
+		// Act
+		using var client = new JokerClient(options);
+
+		// Assert
+		Assert.NotNull(client);
+	}
+
+	[Fact]
+	public void Constructor_WithValidUsernamePassword_CreatesClient()
+	{
+		// Arrange
+		var options = new JokerClientOptions
+		{
+			Username = "test@joker.com",
+			Password = "test-password"
 		};
 
 		// Act

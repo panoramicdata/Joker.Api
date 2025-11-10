@@ -1,0 +1,1212 @@
+This is description of DMAPI, oriented mostly to experienced users.
+	
+The description reflects interface version 1.2.*
+
+Basics:
+=======
+
+	Requests to the DMAPI (Domain Management API) are simply HTTP POST (or GET)
+	requests.
+	
+	NOTE: Only TLS is supported!
+
+	The request parameters are passed as standard www-form variables, URL
+	encoded, i.e. example for login request:
+
+		https://dmapi.joker.com/request/login?username=user@joker.com&password=pass
+	
+	Server responses are plain-text messages, with headers (MIME-like), followed
+	by LF, followed by reply body, like this (response to login request):
+
+---reply---
+Auth-SID: <session-id>
+
+com
+net
+org
+---reply---
+
+	This way, even web-browsers might be used to send requests and to
+	read replies (may be useful for testing).
+
+	Most common headers fields, returned by most requests:
+
+Tracking-Id:	Unique server-assigned tracking id, assigned to almost all
+		requests. Please include this Id (if present) in case if
+		you are reporting problem related to failed request.
+Status-Code:	Not 0 if error occurred
+Status-Text:	Human-friendly error description
+Result:		ACK or NACK
+Proc-ID:	Joker.com processing ID, usually generated for all requests that
+		modify or create objects (domains/contacts/nameservers).
+Account-Balance:
+		Current reseller's account balance. Please note, that
+		this value may be slightly outdated, and should be used
+		only as a reference.
+
+Error:		May be returned if (and only if) the request was rejected,
+		in this case reason(s) will be provided. Presence of this
+		line in headers is indicative that processing didn't take
+		place.
+Warning:	Indicative of non-fatal processing or validation problems.
+
+Columns:	List of columns names, separated by comma (for list queries)
+		If not present, see request description.
+Separator:	List column separator (TAB is "\t", SPACE is " ")
+		If not present, defaults to SPACE (or as specified in request)
+
+	HTTP error codes: 200 if everything is OK (request was accepted and
+	processed or queued for processing), otherwise the reason will be
+	provided in Error header lines (or, if this is absent, HTTP error
+	code should be used).
+
+	NOTE: Regardless of HTTP error code, please examine response body,
+	it may contain useful tips (in Error or Warning headers) why request
+	failed.
+
+	IMPORTANT: Every request (except login) *requires* presence of
+	"auth-sid" parameter, which is returned by the "login" request. Active
+	session will expire after some inactivity period (default 1 hour).
+
+	Example:
+
+		https://dmapi.joker.com/request/query-domain-list?auth-sid=20ddb8c3b2ea758dcf9fa4c7f46c0784
+		
+	In case if you use a browser to access this interface, then session id
+	will be send as a cookie, hence need not to be specified as Auth-Sid
+	(unless cookies are not supported or turned off). In any case,
+	"auth-sid" has precedence, if provided.
+	
+	NOTE: Session may become invalid due to various reasons, so please
+	don't expect it to be valid forever. Instead, design your application
+	in a way, that, if your request is rejected because of authorization
+	failure, send "login" request again, and only if it fails, stop processing.
+	
+	In request descriptions below, "Requires" section defines variables
+	(sometimes referred as fields) that MUST be present, "Accepts"
+	section defines variables that MAY be present (but not required),
+	and "Returns" section describes request output - header fields and
+	extra data (if any). If "Returns" is omitted, then standard reply
+	should be expected (Status-Code, Status-Text, Proc-ID etc.).
+
+	All variable and request names are case-insensitive.
+
+Differences to existing email-gateway
+=====================================
+
+	DMAPI only accepts pre-registered contact and name-server handles.
+	It means that before you can register (or modify) domain, you MUST
+	register all necessary contacts and name-servers.
+
+	Unlike email interface, there is no differentiation in requests for
+	different domain/contact types.
+	
+	Some requests are asynchronous, and acceptance of request by the
+	DMAPI is not necessarily means that it is processed (or will be
+	processed at all). The real reply (acknowledgement or refusal) will
+	be stored on the server and can be retrieved later. To list
+	available replies you should use requests "result-list",
+	"result-retrieve" and "result-delete" periodically.
+	
+	NOTE: Not retrieved replies will be kept on the server for period of
+	90 days, then only status of specific request will be available
+	(success or failure).
+	
+	IMPORTANT: Please also note that registration/renewal period is in
+	MONTHS, NOT YEARS! This is to allow future micro-registrations.
+	
+DISCLAIMER
+==========
+
+	Please be aware, that, in some circumstances, your request might be
+	refused, not processed or processed incorrectly (unlikely, but still
+	possible).
+	
+	However, the DMAPI is supported feature, so your feedback is greatly
+	appreciated.
+	
+	By using DMAPI, you agree to General Terms & Conditions of Joker.com:
+	https://joker.com/index.joker?mode=page&page=agreement
+	
+Requests, their parameters and return values
+============================================
+
+login
+=====
+	Requires:
+		username		Joker.com username
+		password		Joker.com password
+
+	or:
+		api-key			DMAPI API key
+		
+	Returns:
+		Auth-SID		Authenticated Session ID, must be provided with any other request
+		UID			Joker user-id
+
+		List of supported TLDs which reseller may register.
+		
+	Authenticates user to the system.
+		
+	To be able to use entire API, you must have reseller account in
+	joker.com (and use this account to log in).
+
+	You may login with API key (could be created on Joker.com website)
+	or username/password.
+
+	API keys provide isolation and separation of your user account
+	credentials and DMAPI access data, additionally, they allow
+	to specify what kind of access is allowed (full, read-only, etc).
+
+	It is recommended, when using DMAPI, to switch to API keys
+	instead of username/password.
+
+logout
+======
+
+	Returns: nothing
+	
+	Used to forcibly close (terminate) a session. The session identified by
+	Auth-SID may not be used anymore to send requests. Normally not required
+	as session will timeout eventually (default after 1 hour).
+	
+result-list
+===========
+
+	Accepts:
+		pending			Shows results without reply (in progress)
+		showall			Shows results deleted using result-delete
+		period			Shows results for specified period of days (default 90)
+		date			Shows results received on (or before) specified date.
+					When date is specified, parameter "period" will be
+					applied to this date (instead of today) and defaults
+					to 1.
+		offset			Start displaying results from specified position
+		limit			Sets limit for number of rows displayed
+
+		status			Shows results having specified status (ack/nack/?)
+		count-only		When set to 1, only count number of records and return
+					single line in format "Records: N".
+
+		All following filters may use patterns ("*" and "?")
+
+		rtype			Shows results for requests of specified type
+					(domain-register/etc)
+		objid			Shows results for specified object ids (domain names
+					and so on)
+		procid			Shows results for specified proc-id
+		svtrid			Shows results for specified SvTrId
+		cltrid			Shows results for specified ClTrId
+
+	Returns:
+		List of answers from joker.com (one per line):
+
+			TimeStamp SvTrId Proc-ID request-type status ClTrId
+			
+		Where:
+		
+			TimeStamp:	The time when request was made, YYYYMMDDHHMMSS
+			SvTrID:		Tracking-Id associated with this request.
+			Proc-ID:	Proc-Id associated with this request.
+			request-type:	The type of the request.
+			request-object:	The object name (host, domain or contact handle)
+			status:		ack, nack or ?, where ack means that request was
+					completed successfully.
+			ClTrId:		User specified transaction ID, or "-" if nothing
+					was provided by the user.
+
+
+result-retrieve
+===============
+
+	Accepts:
+
+		Proc-ID			One of this must be specified. If both are specified,
+		SvTrID			SvTrId has precedence.
+
+	Returns:
+
+		Answer (processing result) associated with specified Tracking/Processing ID.
+		
+		If detailed information (content) is not available, only status will be returned.
+		
+	Please note: since there is no requirement of uniqueness for user-specified transaction
+	ids, it is not possible to use them to retrieve specific results.
+	
+result-delete
+=============
+
+	Accepts:
+	
+		Proc-ID
+		SvTrId
+		
+	Returns:
+	
+		A descriptive message (confirmation) in case of success.
+		
+	This request will delete the content (not the status) of reply to asynchronous
+	request. Deleted results will not be listed any more when using result-list.
+	Semantics of parameters is like in result-retrieve.
+
+query-domain-list
+=================
+
+	Accepts:
+		pattern			Pattern to match (glob-like)
+		from			Start from this item in list
+		to			End by this
+		showstatus		Add additional column, showing domain status,
+					may be 0 or 1.
+		showgrants		Add additional column, showing domain grants,
+					may be 0 or 1.
+		showjokerns		Add additional column, showing if domain is
+					using Joker name servers, may be 0 or 1.
+
+	Returns:
+	
+		List of registered domains and their expiration dates (one
+		per line, separated by white-space). If "showstatus" is present,
+		the the list will be with three columns, the last one showing
+		domain status (like "lock,autorenew" etc - comma separated).
+		
+query-contact-list
+==================
+
+	Accepts:
+		pattern			Pattern to match (against handle)
+		from			Start from this item in list
+		to			End by this
+		tld			Limits output to contact handles which
+					may be used with specified TLDs.
+		extended-format		Provides additional information for every contact listed:
+					name & organization. May be "1" or "0", defaults to "0".
+		
+	Returns:
+	
+		List of registered contact handles, one per line. 
+		
+		NOTE: Unless explicitly requested ("from" and/or "to" parameters), the number
+		      of entries returned is limited to 10000!
+		
+		When "extended-format" is requested, output columns are separated by tabs ("\t"),
+		and "Columns" header provides column names.
+
+query-ns-list, query-host-list
+==============================
+
+	Accepts:
+		pattern			Pattern to match (against host name)
+		full			Include IPs if non-zero
+
+	Returns:
+		List of registered name servers, one per line
+		If "full" is non-zero, then the list will include IP addresses,
+		IPv4 (2nd column) and IPv6 (3rd column), columns will be separated
+		by tab ("\t") character. If specific IP is not present (say, there
+		is only IPv4 or IPv6), it will be listed as "-".
+
+		Example of list with IPs:
+		
+		ns.example.com	1.2.3.4	-
+		ns6.example.com	-	FE80:0000:0000:0000:0202:B3FF:FE1E:8329
+		
+query-object (deprecated; please use query-whois)
+=================================================
+
+	Accepts:
+		domain			Domain name
+		contact			Contact handle
+		host			Host name
+		
+			Exactly one of those must be specified. Only object registered
+			with Joker.Com may be queried.
+			
+	Returns:
+	
+		Information about specified object (similar to whois), in format "key: value".
+		
+query-whois
+===========
+		
+	Accepts:
+		domain			Domain name
+		contact			Contact handle
+		host			Host name
+		
+			Exactly one of those must be specified. Only object registered
+			with Joker.Com may be queried.
+			
+	Returns:
+	
+		Information about specified object (similar to whois), in format "key: value".
+		The difference to query-object request is that this request reflects actual
+		(live) data in Joker.com database, while query-object may show a data which
+		is a bit outdated.
+		
+	NOTE: this request will eventually replace query-object, or, to be precise, query-object
+	      will be replaced with this one. Some output fields are changed, some are removed
+	      completely, but it should be compatible to query-object. Please, make a transition
+	      to this request.
+		
+query-profile
+=============
+
+	Returns reseller profile data in format "key: value". May be used to
+	query account balance.
+		
+		
+contact-create
+==============
+
+	Parameters:
+		tld			Target TLD, where this contact is intended to be used.
+		name			Full name (if empty, fname + lname will be used)
+		fname			First name
+		lname			Last name
+		title			(opt)
+		individual		(opt) Y, Yes, N, No
+		organization		(opt if individual)
+		email
+		address-1
+		address-2		(opt)
+		city
+		state			(opt)
+		postal-code
+		country			ISO country code (2 letters)
+		phone			Phone number
+		fax			Fax number (opt)
+		lang			(only meaningful for .EU contacts)
+		app-purpose		(required for .US contacts)
+		nexus-category		(required for .US contacts)
+		nexus-category-country	(required for .US contacts)
+		account-type		(required for .UK contacts, if used as owner contact)
+		company-number		(Required for .UK contacts with specific account types)
+		orgid			(Required for .SE/.NU contacts)
+		vatid			(Optional for .SE/.NU contacts)
+		
+	"name" or "lname" and "fname" must be provided. Fields marked (opt) are
+	optional, all other fields are required (and must not be empty).
+	
+	As of version 1.1, "lname" and "fname", if provided, will be converted
+	to "name" (simple concatenation of "fname" and "lname"), because
+	registries support only "name" format. In general, use of "fname" and
+	"lname" is deprecated, and support for these fields will be removed
+	in version 1.2.
+	
+	Please note, fields listed here (except "tld") may be used (or required)
+	in other requests, this is indicated by referring to "Contact fields".
+	
+	"lang" must contain two-letter ISO country (language) code, and is only
+	required when creating .EU contacts. The purpose is to specify language
+	to be used in notifications emails, sent from EURid. Please note - this
+	field cannot be modified later, and the default is 'EN' (English)!
+	
+	"app-purpose", "nexus-category" and "nexus-category-country" are
+	required only when creating .US contacts, and cannot be modified
+	later.
+	
+	"account-type" is a required for all .UK contacts which will be used as
+	domain owner contacts. Possible values are:
+	
+		Value		Meaning
+		==========	===========================================
+		LTD		UK Limited Company
+		PLC		UK Public Limited Company
+		PTNR		UK Partnership
+		STRA		UK Sole Trader
+		LLP		UK Limited Liability Partnership
+		IP		UK Industrial/Provident Registered Company
+		IND		UK Individual (representing self)
+		SCH		UK School
+		RCHAR		UK Registered Charity
+		GOV		UK Government Body
+		CRC		UK Corporation by Royal Charter
+		STAT		UK Statutory Body
+		OTHER		UK Entity that does not fit into any of the above
+				(e.g. clubs, associations, many universities)
+		FIND		Non-UK Individual (representing self)
+		FCORP		Non-UK Corporation
+		FOTHER		Non-UK Entity
+		
+	By default, if "account-type" is not provided, value "FIND" or "IND" will be used
+	(dependent "country" value - for GB and UK it will be "IND", for everything else "FIND").
+	
+	"company-number" is required when "account-type" is one of: SCH, RCHAR, LTD, PLC, LLP, IP
+
+	"orgid" represents Swedish personal or organisational number and is required for .SE/.NU
+	contacts. It starts with ISO 3166 Alpha-2 country code in square brackets. If the country
+	code for Sweden is given [SE] a valid Swedish personal or organisational number 
+	must be given (6 digits, dash, 4 digits), otherwise 1 to 123 characters can follow.
+	If organization is empty and the country code for Sweden [SE] is given, orgno
+	must be a personal number not an organisational number.
+	
+	"vatid" is optional for .SE/.NU contacts. It starts with a two letter country code (uppercase),
+	followed by an optional space, followed by a country specific string containing digits
+	0-9, and letters a-z and A-Z, maximum 64 Chars.
+
+	Various registries/TLDs may require additional fields (also called
+	"extensions"), all those fields have a prefix like "x-eu-" where first word
+	after "x-" is registry or TLD name.
+
+    Known extensions, grouped by TLD:
+
+    be:
+        x-be-lang	(en|fr|nl)	Language for mails from registry to contact.
+        x-be-type	(owner|admin|tech|licensee|onsite)	type for the contact
+        x-be-vatid	Vatid of company
+
+    ca:
+    	x-ca-legal-type	(ABO|ASS|CCO|CCT|EDU|GOV|HOP|INB|LAM|LGR|MAJ|OMK|PLT|PRT|RES|TDM|TRD|TRS)
+
+    cn:
+        x-cn-owner-id-number	[\x20-\xff]{1,30}	Passport ID or company ID from official docs
+        x-cn-owner-id-type	(SFZ|HZ|GAJMTX|TWJMTX|WJLSFZ|GAJZZ|TWJZZ|JGZ|QT|ORG|QT|YYZZ|TYDM|BDDM|JDDWFW|SYDWFR|WGCZJG|SHTTFR|ZJCS|MBFQY|JJHFR|LSZY|WGZHWH|WLCZJG|SFJD|JWJG|SHFWJG|MBXXBX|YLJGZY|GZJGZY|BJWSXX|QTTYDM)	 for I only (SFZ,HZ,GAJMTX,TWJMTX,WJLSFZ,GAJZZ,TWJZZ,JGZ,QT) allowed!
+        x-cn-owner-type	(E|I)	 E=Enterprise, I=Individual
+
+    at, co.at, or.at:
+        x-atnic-type	(privateperson|role|organisation)	type for the contact
+
+    uk, co.uk, me.uk, net.uk, plc.uk, org.uk, ltd.uk
+    	x-nominet-trading-name	[\x20-\xff]{1,50}	The trading name of the organization
+        x-nominet-company-no	[\x20-\xff]{1,30}	The registered company number
+        x-nominet-type	(LTD|PLC|PTNR|STRA|LLP|IP|IND|SCH|RCHAR|GOV|CRC|STAT|OTHER|FIND|FCORP|FOTHER)	account type
+
+    de:
+        x-de-type	(person|role|org)	type for the contact
+
+    dk:
+        x-dk-user-id-number	.*	user id for .dk domains
+        x-dk-user-type	(COMPANY|PERSON|PUBORG|ASSOCIATION)	user type for .dk domains
+
+    eu, xn--e1a4c (cyrillic version), xn--qxa6a (greek version):
+    	x-eu-natural-person	(true|false)	if set it is used
+        x-eu-country-of-citizenship	[A-Z]{2,2}	country code
+        x-eu-lang	(bg|cs|da|de|el|en|es|et|fi|fr|ga|hr|hu|it|lt|lv|mt|nl|pl|pt|ro|sk|sl|sv)	Sets the domain owners language displayed in the EURid WHOIS.
+        x-eu-type	(owner|admin|onsite)	type for the contact
+
+    fi:
+        x-ficora-birthdate	\d{4}-\d{2}-\d{2}	birthdate for owner contact
+        x-ficora-identity	([\w\-]{5,20})	identity nr privatepersons
+        x-ficora-is-finnish	(yes|no)	is finish person or company ?
+        x-ficora-legalemail	!@email	if type=company it must be
+        x-ficora-registernumber	.{3,30}	registernumber for companies
+        x-ficora-role	(billing|admin|tech|owner)	role of contact
+        x-ficora-type	(association|privateperson|company|corporation|institution|politicalparty|township|government|publiccommunity|municipality)	type of contact
+
+    fr:
+        x-fr-announce	\d+	"The ""announce"" attribute shows the number of the announcement(e.g. 5). Only digits allowed"
+        x-fr-birthcity	[\x20-\xff]{1,30}	Only for natural persons born in France (or one of the following countries RE|MQ|GP|GF|TF|NC|PF|WF|PM|YT), the registrant's place of birth (city name).
+        x-fr-birthdate	\d{4}-\d{2}\-d{2}	The registrant's birthdate in the form YYYY-MM-DD.
+        x-fr-birthpc	[\x20-\xff]{1,30}	Only for natural persons born in France (or one of the following countries RE|MQ|GP|GF|TF|NC|PF|WF|PM|YT), the registrants postcode of the place of birth (or at least the department code)
+        x-fr-birthplace	[A-Z]{2}	The registrant's birthplace in form of a two-letter country-code. (e.g. DE)
+        x-fr-date-association	\d{4}-\d{2}\-d{2}	Shows the date of association. (DATE FORMAT YYYY-MM-DD)
+        x-fr-date-publication-jo	\d{4}-\d{2}\-d{2}	Date of publication JO Will contain the date of publication in the official gazette (DATE FORMAT YYYY-MM-DD)
+        x-fr-duns	[\x20-\xff]{1,30}	Company DUNS For companies with a valid DUNS number; Short for Data Universal Numbering System; refers to a new identifier that can be sent for an Eligibility Verification at European level.
+        x-fr-local	[\x20-\xff]{1,30}	Company Local; For companies with a valid local identifier;   A local identifier specific to a country of the European Economic Area(e.g. business certificate number).
+        x-fr-numero-de-page-announce-jo	\d+	"Number of page announce JO; The ""page"" attribute shows the page number of this announcement. Only digits allowed!"
+        x-fr-restrict-pub	\d{1}	0 | 1  Show private data in whois (0=show, 1=do not show)
+        x-fr-siren-or-siret	[\x20-\xff]{1,30}	SIREN/SIRET number; For companies with valid SIREN/SIRET number;   The company name provided in the registrant contact details must be exactly the same as shown in SIREN/SIRET database ( https://www.infogreffe.fr/ ).
+        x-fr-trademark	[\x20-\xff]{1,30}	Trademark number;   For companies with a valid trademark number
+        x-fr-vatid	[\x20-\xff]{1,30}	Company VAT ID; For companies with valid VATID
+        x-fr-waldec	\d+	Waldec ID; Indicates the identifier Waldec linked to an association. If this identifier is provided, this is sufficient to identify an association. Only digits allowed
+
+    ie:
+        x-ie-applicant	.*	Name of applicant
+        x-ie-applicant-class	(Company|Business Owner|Club/Band/Local Group| School/College|State Agency|Blogger/Other)
+
+    it:
+        x-it-consentforpublishing	[0|1]
+        x-it-entity-type	[1|2|3|4|5|6|7]
+        x-it-pin	(.*)
+        x-it-sect3-liability	[0|1]
+        x-it-sect5-personal-data-for-registration	[0|1]
+        x-it-sect6-personal-data-for-diffusion	[0|1]
+        x-it-sect7-explicit-acceptance	[0|1]
+
+    nl:
+    	x-nl-legal-form	(ANDERS|BGG|BRO|BV|BVI/O|COOP|CV|EENMANSZAAK|EESV|KERK|MAATSCHAP|NV|OWM|PERSOON|REDR|STICHTING|VERENIGING|VOF)	legal form for that contact
+        x-nl-legal-form-registration-no	[\x20-\xff]{1,30}	has to be set if legal_form is
+
+    nu:
+        x-iinu-orgid	[\x20-\xff]{1,30}	organisation id for the contac
+        x-iinu-vatid	[\x20-\xff]{1,30}	vatid for the contact
+
+    se, pp.se:
+        x-iise-vatid	[\x20-\xff]{1,30}	vatid for the contact
+        x-iise-orgid	[\x20-\xff]{1,30}	organisation id for the contac
+
+    sk:
+        x-sk-contact-ident-number	.*	commercial registernumber for companies;personal id for natural persons
+        x-sk-contact-legal-form	(CORP|PERS)	CORP=Company/org; PERS=natural person
+
+    us:
+        x-us-app-purpose	[Pp][12345] 	.us purpose of contact
+        x-us-nexus-category	([Cc])(11|12|21|31|32)	.us nexus category
+        x-us-nexus-category-country	!@country	.us nexus category country
+
+    xxx:
+        x-xxx-membership-token	[\x20-\xff]{1,30}	 registrar tag for domains
+
+contact-modify
+==============
+
+	Requires:
+		handle			Contact handle to modify.
+
+	Accepts (at least one of those must be provided):
+		name			Full name (if empty, fname + lname will be used)
+		fname			First name
+		lname			Last name
+		title
+		individual		Y, Yes, N, No
+		organization		(must be provided if individual=N)
+		email
+		address-1
+		address-2
+		city
+		state
+		postal-code
+		country			ISO country code (2 letters)
+		phone
+		fax
+		lang			(only meaningful for .EU contacts)
+		app-purpose		(.US contacts)
+		nexus-category		(.US contacts)
+		nexus-category-country	(.US contacts)
+		account-type		(.UK contacts, if used as owner contact)
+		company-number		(.UK contacts with specific account types)
+
+
+	If you	specify a field, it will be used as a new value, if you omit
+	(do not specify) it, the old value will not be modified.
+	
+	See also "contact-create" request for additional information,
+	especially allowed extensions.
+				
+contact-delete
+==============
+
+	Requires:
+		handle			Contact handle to delete
+		
+	Using this request you can delete previously registered contact.
+		
+ns-create, host-create
+======================
+
+	Requires:
+		host			FQDN host name
+		ip			IPv4 address (must not be from IANA's reserved range)
+		ipv6			IPv6 address
+		
+	Using this request you can register a nameserver. If ipv6 is provided,
+	ip (IPv4) must be provided as well.
+		
+ns-modify, host-modify
+======================
+
+	Requires:
+		host			FQDN host name
+		ip			IPv4 address (must not be from IANA's reserved range)
+		ipv6			IPv6 address
+		
+	Using this request you can modify the IP address of a registered
+	nameserver.
+	
+	"-" may be used to specify empty value for "ip" or "ipv6", but at least one
+	of IP addressses must be set to valid address, or the request will fail.
+	
+	
+ns-delete, host-delete
+======================
+
+	Requires:
+		host			FQDN host name
+		
+	Using this request you can delete a registered nameserver.
+		
+domain-register
+===============
+
+	Requires:
+		domain			Domain name to register
+		period			Registration period in MONTHS (not in years!)
+		status			Domain status (only "production" is accepted so far)
+		owner-c			Owner contact handle
+		billing-c		Billing contact handle
+		admin-c			Administrative contact handle
+		tech-c			Technical contact handle
+		ns-list			List of name servers, delimited by colon
+		
+	Accepts:
+		autorenew		If set to "1", domain will be autorenewed upon
+					expiration.
+		language		3 letter language code for IDN domains
+		registrar-tag		Registrar tag, also known as "Membership token",
+					only meaningful for .XXX domains
+		privacy			Enable privacy protection - could be "basic" or "pro"
+					NOTE: this option causes additional charge!
+	
+		
+	Using this request you can register the domain.
+	
+	NOTE: You *must* have registered contacts to be able to register a domain!
+		
+	IMPORTANT: Please note that registration period is in MONTHS, NOT YEARS! This
+	is to allow future micro-registrations (in development).
+	
+domain-renew
+============
+
+	Requires:
+		domain			Domain name to renew
+		period			Renewal period in months (not in years!)
+		expyear			Wanted expiration year
+		privacy			Choose privacy protection - could be "basic", "pro"
+					or "off"
+					NOTE: this option causes additional charge!
+
+	Using this request you can renew the domain. Please be aware that all
+	renewals are not refundable.
+		
+	IMPORTANT: Please note that registration period is in MONTHS, NOT YEARS!
+	
+	"expyear" is a safe option which can be used instead of "period" to
+	renew domain till specified year (not longer). If you use "period",
+	and by mistake send the request more than once, domain will be renewed
+	again, while with "expyear", it will not be renewed if it's expiration
+	year is greater or equals to specified.
+	
+	Only one of "period" or "expyear" may be used, but not both.
+		
+domain-privacy-order
+====================
+
+	Requires:
+		domain			Domain name to order privacy for
+		privacy			Type of privacy protection - could be "basic" or "pro"
+	
+	Optional:
+		period			Period to order privacy for in months (not in years!)
+		expyear			Wanted expiration year
+
+	Orders privacy feature for specified domain.
+	
+	If "period" or "expyear" is not specified, privacy is ordered for all remaining lifetime
+	of a domain, i.e. if domain expires in 5 years, then privacy will be ordered for 5 years,
+	but if domain is expires in 1 month, the full year will be charged though privacy will be
+	active only for 1 month.
+	
+	If "period" or "expyear" spans beyond domain expiration, request will fail.
+	
+	Privacy is domain-bound option, it expires when domain expires. It may be renewed when
+	renewing domain.
+
+domain-transfer-in-reseller
+===========================
+
+	Requires:
+		domain			Domain name to transfer
+		transfer-auth-id	Transfer Auth Id
+		billing-c		New billing contact handle
+		admin-c			New admin contact handle
+		tech-c			New tech contact handle
+
+	Accepts:
+		status			New domain status
+		owner-c			New owner contact handle
+		autorenew		Autorenew flag for the domain (0 or 1).
+					If not set explicitly, defaults to 1.
+		ns-list			List of colon-separated name-servers.
+		owner-email		New owner email
+		privacy			Enable privacy protection - could be "basic" or "pro"
+					NOTE: this option causes additional charge!
+	
+	Using this request you can initiate a transfer of the domain from
+	another registrar to Joker.com (gaining or incoming transfer).
+
+	"transfer-auth-id" is required for all domains excluding "uk" and "at".
+
+	Please note that "owner-c" parameter will become mandatory one day, please
+	use it whenever possible.
+
+domain-transfer-get-auth-id
+===========================
+
+	Requires:
+		domain			Domain name to get auth id for
+		
+	Retrieves domain Auth-ID, which is required when transferring domains
+	to another registrar.
+	
+	This request is not real-time, i.e. you have to check detailed reply
+	(use "result-retrieve")	to get Auth-ID.
+	
+	Please note - *every* request will generate new Auth-ID, thus
+	rendering any previously requested Auth-ID invalid.
+		
+domain-modify
+=============
+
+	Requires:
+		domain			Domain name to modify
+		
+	Accepts:
+		billing-c		New billing contact handle
+		admin-c			New administrative contact handle
+		tech-c			New technical contact handle
+		ns-list			List of new name-servers (it will _replace_
+					existing name-servers!)
+		registrar-tag		Registrar tag, also known as "Membership token",
+					which can be set/changed on .XXX domains
+
+		dnssec			If specified, allows setting or removal of DNSSEC
+					keys for domain. If not specified, DNSSEC records
+					will not be changed.
+					Value of "0" will remove DNSSEC, value of "1" will
+					add DNSSEC (and ds-N parameters must be provided)
+
+		ds-1			List of DNSSEC parameters for DNSSEC enabled domains
+		ds-2			For com/net/org/tv/cc each entry has format:
+		ds-3				tag:alg:digest-type:digest
+		ds-4			For de:
+		ds-5				protocol:alg:flags:pubkey-base64
+		ds-6
+		
+	Using this request you can modify contact handles for the domain,
+	list of name-servers or DNSSEC parameters (for DNSSEC enabled domains).
+	
+	If specific value is not present, it will not be touched. Modification
+	of name-servers or DNSSEC parameters will replace currently defined set
+	of DNSSEC keys or name-servers.
+	
+	NOTE: DNSSEC parameters (ds-N) must be specified in order (ds-1, ds-2 etc),
+	and due to technical limitations this is impossible to modify only specific
+	key - they must be set all at once. This means that any request to modify DNSSEC
+	records will *replace* existing keys with only those which are provided!
+	
+	Example for adding one key (and enabling DNSSEC):
+	
+	http://dmapi.joker.com/request/domain-modify?domain=example.com&dnssec=1&ds-1=9934:8:1:C4BF75B16AF82888B61E28951BEF27804B60D968
+	
+	Example for removing DNSSEC information:
+	
+	http://dmapi.joker.com/request/domain-modify?domain=example.com&dnssec=0
+	
+	NOTE: You have to have your own name-service somewhere else to support DNSSEC,
+	if you use Joker.com name-service, DNSSEC will not be provided!
+
+domain-delete
+=============
+
+	Requires:
+		domain			Domain name to delete
+		
+	Accepts:
+		force			If present and contains 1, Y or Yes,
+					domain will be deleted even if older
+					that 3 days.
+		type			type of delete request, one of:
+					endoflife, immediate, transit
+					
+	Using this request you can delete already registered domain.
+	
+	If you delete a domain within the first 3 days after the registration,
+	the registration fee may be refunded to your account.
+	
+	To delete domain which is registered longer than 3 days, you must
+	specify "force=1", otherwise request will be rejected.
+
+	IMPORTANT: Please note that this feature must not be used for "domain tasting"
+	or "front running", and if you delete more than 1 domain per 12 registered
+	per month, you will not be refunded!
+
+	Deletion of domains in zones .eu, .nl, .me, .at, .de will not be refunded
+	regardless of when it was deleted!
+	
+domain-redeem
+=================
+
+	Requires:
+		domain			Domain name to redemption
+		
+	Redeem (restore) domain from RGP (redemption grace period).
+	
+domain-owner-change
+===================
+
+	Requires:
+	
+	domain			Domain name to change owner
+		*			Contact fields (see contact-create)
+		
+	Using this request you can change (visible) owner of the domain.
+	Please use same fields as in contact-create request to describe
+	new owner.
+		
+domain-lock
+===========
+
+	Requires:
+		domain			Domain name to lock
+		
+	Using this request you can lock a domain for preventing fraudulent
+	transfer attempts. If a domain is locked, each transfer-request from
+	a foreign registrar will be declined.
+
+domain-unlock
+=============
+
+	Requires:
+		domain			Domain name to unlock
+		
+
+	Using this request you can unlock a domain. If you want to transfer a
+	domain to a foreign registrar, the domain has to be unlocked.
+
+domain-set-property
+===================
+
+	Requires:
+		domain			Domain name or pattern
+		pname			Property name
+		pvalue			Property value (may be empty)
+		
+
+	Using this request you can set a property (flag) for a domain or
+	a set of domains, selected by wildcard pattern.
+	
+	List of available properties and their effects:
+	
+	Property name		Value/Effect
+	=============		=============================================
+	autorenew		0 or 1
+				If set to 1, the domain will be autorenewed
+				on expiration (if you have non-zero balance).
+
+	whois-opt-out		0 or 1
+				Only meaningful for .tel domains currently.
+				If set to 1, owner information will not be
+				shown in whois.
+				
+	privacy			"off", "basic" or "pro"
+				Switch privacy protection type (if available)
+				
+				
+	If value provided is empty, then the property will be cleared, i.e.
+	the default will be used.
+	
+domain-get-property
+===================
+
+	Requires:
+		domain			Domain name
+		pname			Property name (same as in
+					domain-set-property)
+					
+	Using this request you can query value of specific property set for
+	domain. It returns single line, which looks like:
+	
+	autorenew: 0
+	
+grants-list
+===========
+
+	Requires:
+		domain			Domain name
+		
+	Accepts:
+		showkey			Show invitation access key
+
+	Get a list of active and pending grants.
+	
+	Returns lines in the following format (space-separated):
+
+	invitation <nr> <scope> <key> domain <domain-name> <role> - - - <invitee-email> <nick-name>
+	grant <nr> <scope> <key> domain <domain-name> <role> <inviter-username> <invitee-username> <invitee-userid> <invitee-email> <nick-name>
+	
+	Where:
+	<nr>			Record number
+	<scope>			Grant/Invite id (used to uniquely identify records for revocation)
+	<key>			Invitation access key, present *only* when "showkey" is non-zero
+				It has meaning only for pending invitations only, and always is "-"
+				for grants.
+	<domain-name>		Domain name (identical to requested)
+	<role>			One of @admin/@billing/@tech/@creator
+	<inviter-username>	Self-explaining
+	<invitee-username>	Self-explaining
+	<invitee-userid>	-
+	<nick-name>		Self-Explaining
+	
+grants-invite
+=============
+
+	Requires:
+		domain			Domain name
+		email			Email of invitee
+		client-uid		Joker client-id of invitee - if provided, this will perform "silent"
+					assignment: invitee doesn't need to "accept" invitation, but will
+					be notified in any case.
+		role			Proposed role (@admin/@billing/@tech/@creator)
+		nickname		Invitee's nickname. If omitted, email will be used as default nickname.
+		
+	Returns status only (ok or not). Email is sent if request was succesfull.
+	
+	To internally transfer domain to another user (account) within Joker.com, please use the following
+	request:
+	
+	https://dmapi.joker.com/request/grants-invite?domain=example.com&email=dst-user-email@joker.com&role=@creator&client-uid=<dst-uid>
+	
+	Obviously, you will need to know user ID of the user, who will receive the domain - simply providing email address
+	is not sufficient.
+
+grants-revoke
+=============
+
+	Requires:
+		domain			Domain name
+		role			Role to revoke
+		scope			Scope (from grants-list request)			
+		type			Type of the record to revoke - "grant" or "invitation"
+		
+	Returns status only (ok or not). Email is sent if request was successful. 
+
+dns-zone-list
+=============
+
+	Accepts:
+		pattern			Pattern to match (glob-like)
+
+	List zones (domains) which are managed and served by Joker.com name
+	servers. Zones are listed one per line.
+
+dns-zone-get
+============
+
+	Requires:
+		domain			Zone (domain) name to fetch data
+					from.
+
+	Returns list of zone records in the format, described in dns-zone-put request.
+
+
+dns-zone-put
+============
+
+	Requires:
+		domain			Zone (domain) name to store data to.
+		zone			URL encoded zone data
+
+	Replace current zone for provided domain with specified value.
+
+	Field "zone" will be parsed as multi-line text (so usual line
+	terminators are expected).
+	
+	WARNING: this request will OVERWRITE current zone, i.e. all current
+	records will be replaced by new records.
+	
+	The format of a zone definition is as follows (one record per line):
+	
+	<label> <type> <pri> <target> <ttl> <valid-from> <valid-to> <parameters(s)>
+
+	Where:
+
+		label		subdomain/redirection label, relative to
+				current zone, or @ (which means	current
+				zone name).
+		type		record type (A, AAAA, MX, CNAME, URL,
+				MAILFW, TXT, NAPTR, DYNA, DYNAAAA, SRV, CAA)
+		pri		numeric value, meaningful only for types
+				MX, NAPTR and SRV, must be 0 for all other
+				types
+		target		record target/value. Must be quoted if
+				contains spaces.
+		ttl		record TTL in seconds
+		valid-from	record is not valid before this time (UNIX
+				timestamp) or 0
+		valid-to	record is not valid after this time (UNIX
+				timestamp) or 0
+		parameters	record-specific parameter(s)
+
+	All values from "name" to "ttl" are mandatory for every record.
+		
+	<valid-to> and <valid-from> are not implemented yet, so usually are 0,
+	and may be omitted if there are no other parameters required.
+
+	<parameters(s)> are record dependent, used in NAPTR, MAILFW, FRAME and URL
+	records.
+	
+	<ttl> must be at least 300 for all records except NAPTR and SVC, where
+	it can be 0 (meaning: no caching). For MAILFW/URL/FRAME <ttl> is
+	irrelevant and assumed to be 60 seconds (i.e., any change will be
+	in effect within 60 seconds from zone change).
+	
+	<pri> preference value for MX records, priority/weight for SRV records
+	and order/preference for NAPTR records. For any other record, the value
+	must be 0.
+	
+	Examples of zone records:
+	
+	www		A	    0	127.0.0.1		    86400
+	www		AAAA	0	fec0::17		    86400
+	
+	@		MX	    10	mail.example.com.	86400
+
+    URL record format:
+
+	redirect	URL	0	http://joker.com		86400
+
+	FRAME record format:
+
+	Sets redirection from redirect.joker.com to http://joker.com (assuming that
+	current zone is "joker.com").
+
+	frame		FRAME	0	http://joker.com		86400	0 0 "Header: Frame-Forward" "head" "title" "body"
+	
+	Sets frame-based redirection similar to URL redirection.
+	
+	For FRAME record, extra parameters are as follows:
+	
+		Extra HTTP headers. (newlines may be escaped as \n)
+		Extra text placed in <head></head> section of generated HTML.
+		Title text (<title></title>) of generated HTML.
+		Body text (used for <noframes> section)
+
+	MAILFW record format:
+
+	username	MAILFW	0	redirected@example.com	86400	0 0 1
+	
+	This MAILFW records makes redirection of mail sent to username@joker.com (assuming
+	that current zone name is "joker.com") to redirected@example.com, extra parameter ("1")
+	specifies that spam-filtering should be used.
+
+	NAPTR record format:
+
+	naptr		NAPTR	10/100	replacement		86400	0 0 "flags" "service" "regex"
+	
+	This NAPTR record has order 10 and preference 100. Only one of "replacement" or "regex" may be
+	specified, if "regex" is specified, "replacement" must be "." (without quotes), if "replacement"
+	is specified, "regex" must be empty string. Quotes are mandatory for all extra parameters.
+	For details please consult RFC 2915, or look here: http://de.wikipedia.org/wiki/NAPTR
+
+	SRV record format:
+
+	_ldap._tcp	SRV	10/100	ldap.example.com:389	60
+	
+	This SRV record has priority 10, weight 100, target "ldap.example.com"
+	and port "389" with TTL 60 seconds. Please consult RFC 2782 for details.
+
+    CAA record format:
+
+	caa     CAA 0   issue "letsencrypt.org" 86400
+	caa     CAA 0   issuewild "letsencrypt.org" 86400
+	caa     CAA 0   iodef "mailto:certissues@example.com" 86400
+
+	For more information about CAA records please check
+	  https://en.wikipedia.org/wiki/DNS_Certification_Authority_Authorization
+
+    TXT record format:
+	
+	txt		TXT	0	"key=value"		86400
+	
+	Quoting of values for TXT records is mandatory.
+
+	CNAME record format:
+
+	www		CNAME	0	example.com.		86400
+
+	DYNA and DYNAAAA records:
+
+	Two special record types, DYNA and DYNAAAA, are used for DynDNS purposes.
+	They have same meaning as corresponding "A" and "AAAA" records, except that
+	their targets may be updated using Joker DynDNS service.
+	
+	To enable/disable DynDNS service, and to defined username/password used to access
+	it, the record format is as follows:
+	
+	$dyndns=yes:username:password
+	
+	username/password may not contain spaces or colon (":") characters. If "no" is
+	specified instead of "yes", DynDNS will be turned off (i.e. DYN* entries will
+	have no effect).
+	
+	All empty lines, or lines starting with "#" character are ignored.
+	
+	In case if there are any errors, zone modification will not be accepted.
+	All errorswill be reported for every erroneous line, so if there are more
+	than one, you will be able to see all detectable errors.
+
+wa-email-list
+=============
+
+	Lists all domain owner emails which are pending verification. Default output is
+	as follows:
+	
+	email-address<TAB>domain-name<TAB>verification-expiration-date
+	
+	Where:
+	
+		email-address	email address of the domain owner which is pending verification
+		domain-name	domain name where email is the owner
+		verification-expiration-date	verification deadline, i.e. if by this date and time
+			(specified in standard ISO format) email is not positively verified, the domain
+			name listed may be put on hold.
+
+wa-email-details
+================
+
+	Requires:
+	
+		key	Verification key
+	
+	List verification status for provided verification key. Entries are listed as follows:
+	
+	status<TAB>email<TAB>domain
+	
+	"status" is "verification", email is the domain owner's email.
+
+wa-email-validate
+=================
+
+	Requires:
+	
+		email	Email address to send validation request to.
+			It must be domain owner's email address.
+		
+	Returns special response header "Result", which will contain "ACK" if the validation request
+	has been sent or "NACK" otherwise.
+
+wa-email-verify
+===============
+
+	Requires:
+	
+		key	Verification key (provided in meail verification request)
+		answer	Answer to verification request - "yes" or "no".
+		
+	If the answer is "yes", the verification status is set to "verified" and email is confirmed as valid,
+	if the answer is "no", then verification status is set to "invalid". If there is no answer before
+	verification deadline (normally 15 days), the status is also set to "invalid".
+
+	Returns special response header "Result", which will contain "ACK" if the verification has been
+	accepted or "NACK" otherwise.
+	
+wa-email-query-status
+=====================
+
+	Requires:
+	
+		email	Email address to query status of
+		
+	Returns single line with email status. Possible statuses:
+	
+	verified	email address is known and successfully verified (valid)
+	unverified	email address is either not (yet) verified or is not known.
+	pending		verification email has been sent but no response received yet
+	invalid		email address is known to be invalid (bounced or no response)
+
+	Statuses "pending" and "invalid" are informational and are not guaranteed,
+	i.e. it could happen that "unverified" is returned instead.
+
+-----

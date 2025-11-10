@@ -37,12 +37,30 @@ Install-Package Joker.Api
 
 ### 1. Authentication Setup
 
+The Joker DMAPI supports two authentication methods:
+
+#### Option 1: API Key (Recommended for automated access)
+
 ```csharp
 using Joker.Api;
 
 var options = new JokerClientOptions
 {
     ApiKey = "your-api-key"
+};
+
+var client = new JokerClient(options);
+```
+
+#### Option 2: Username and Password
+
+```csharp
+using Joker.Api;
+
+var options = new JokerClientOptions
+{
+    Username = "user@joker.com",
+    Password = "your-password"
 };
 
 var client = new JokerClient(options);
@@ -135,8 +153,10 @@ The `JokerClientOptions` class provides extensive configuration:
 ```csharp
 public class JokerClientOptions
 {
-    // Required authentication
-    public required string ApiKey { get; init; }
+    // Authentication (choose one method)
+    public string? ApiKey { get; init; }              // Option 1: API Key (recommended)
+    public string? Username { get; init; }            // Option 2: Username
+    public string? Password { get; init; }            // Option 2: Password
     
     // Optional configuration
     public string BaseUrl { get; init; } = "https://dmapi.joker.com";
@@ -169,10 +189,20 @@ We welcome contributions from the community! Here's how you can help:
    Download from [dotnet.microsoft.com](https://dotnet.microsoft.com/download)
 
 3. **Set up User Secrets for testing**:
+   
+   Using API Key (recommended):
    ```bash
    cd Joker.Api.Test
    dotnet user-secrets init
    dotnet user-secrets set "JokerApi:ApiKey" "your-api-key"
+   ```
+   
+   Or using Username/Password:
+   ```bash
+   cd Joker.Api.Test
+   dotnet user-secrets init
+   dotnet user-secrets set "JokerApi:Username" "user@joker.com"
+   dotnet user-secrets set "JokerApi:Password" "your-password"
    ```
 
 4. **Build and test**:

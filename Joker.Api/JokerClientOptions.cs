@@ -6,9 +6,19 @@ namespace Joker.Api;
 public class JokerClientOptions
 {
 	/// <summary>
-	/// Gets the API key for authentication
+	/// Gets the Joker.com username (required if ApiKey is not provided)
 	/// </summary>
-	public required string ApiKey { get; init; }
+	public string? Username { get; init; }
+
+	/// <summary>
+	/// Gets the Joker.com password (required if ApiKey is not provided)
+	/// </summary>
+	public string? Password { get; init; }
+
+	/// <summary>
+	/// Gets the DMAPI API key (alternative to Username/Password authentication)
+	/// </summary>
+	public string? ApiKey { get; init; }
 
 	/// <summary>
 	/// Gets the DMAPI base URL (defaults to https://dmapi.joker.com)
@@ -54,4 +64,17 @@ public class JokerClientOptions
 	/// Gets the maximum retry delay when using exponential backoff
 	/// </summary>
 	public TimeSpan MaxRetryDelay { get; init; } = TimeSpan.FromSeconds(30);
+
+	/// <summary>
+	/// Validates the configuration options
+	/// </summary>
+	public void Validate()
+	{
+		if (string.IsNullOrWhiteSpace(ApiKey) && 
+		    (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password)))
+		{
+			throw new InvalidOperationException(
+				"Either ApiKey or both Username and Password must be provided for authentication.");
+		}
+	}
 }
