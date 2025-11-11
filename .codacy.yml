@@ -16,10 +16,11 @@ engines:
     exclude_patterns:
       - 'Joker.Api.Test/**'
     exclude_rules:
-      - 'S1313'  # IP addresses should not be hardcoded
+      - 'S2360'  # Optional parameters should not be used (valid pattern for modern C# APIs)
+      - 'S107'   # Methods should not have too many parameters (optional params are fine)
   
   lizard:
-    enabled: false  # Disable complexity checking (we have our own standards)
+    enabled: false  # Disable complexity checking - switch statements inflate scores
   
   checkstyle:
     enabled: false
