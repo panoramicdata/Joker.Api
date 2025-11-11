@@ -1,3 +1,5 @@
+using AwesomeAssertions;
+
 namespace Joker.Api.Test;
 
 /// <summary>
@@ -81,15 +83,15 @@ public class JokerClientOptionsTests
 		};
 
 		// Assert
-		Assert.Equal("https://dmapi.joker.com", options.BaseUrl);
-		Assert.Equal(TimeSpan.FromSeconds(30), options.RequestTimeout);
-		Assert.Equal(3, options.MaxRetryAttempts);
-		Assert.Equal(TimeSpan.FromSeconds(1), options.RetryDelay);
-		Assert.True(options.UseExponentialBackoff);
-		Assert.Equal(TimeSpan.FromSeconds(30), options.MaxRetryDelay);
-		Assert.False(options.EnableRequestLogging);
-		Assert.False(options.EnableResponseLogging);
-		Assert.Null(options.Logger);
+		options.BaseUrl.Should().Be("https://dmapi.joker.com");
+		options.RequestTimeout.Should().Be(TimeSpan.FromSeconds(30));
+		options.MaxRetryAttempts.Should().Be(3);
+		options.RetryDelay.Should().Be(TimeSpan.FromSeconds(1));
+		options.UseExponentialBackoff.Should().BeTrue();
+		options.MaxRetryDelay.Should().Be(TimeSpan.FromSeconds(30));
+		options.EnableRequestLogging.Should().BeFalse();
+		options.EnableResponseLogging.Should().BeFalse();
+		options.Logger.Should().BeNull();
 	}
 
 	[Fact]
@@ -110,14 +112,14 @@ public class JokerClientOptionsTests
 		};
 
 		// Assert
-		Assert.Equal("custom-key", options.ApiKey);
-		Assert.Equal("https://custom.api.url", options.BaseUrl);
-		Assert.Equal(TimeSpan.FromMinutes(2), options.RequestTimeout);
-		Assert.Equal(5, options.MaxRetryAttempts);
-		Assert.Equal(TimeSpan.FromSeconds(5), options.RetryDelay);
-		Assert.False(options.UseExponentialBackoff);
-		Assert.Equal(TimeSpan.FromMinutes(1), options.MaxRetryDelay);
-		Assert.True(options.EnableRequestLogging);
-		Assert.True(options.EnableResponseLogging);
+		options.ApiKey.Should().Be("custom-key");
+		options.BaseUrl.Should().Be("https://custom.api.url");
+		options.RequestTimeout.Should().Be(TimeSpan.FromMinutes(2));
+		options.MaxRetryAttempts.Should().Be(5);
+		options.RetryDelay.Should().Be(TimeSpan.FromSeconds(5));
+		options.UseExponentialBackoff.Should().BeFalse();
+		options.MaxRetryDelay.Should().Be(TimeSpan.FromMinutes(1));
+		options.EnableRequestLogging.Should().BeTrue();
+		options.EnableResponseLogging.Should().BeTrue();
 	}
 }

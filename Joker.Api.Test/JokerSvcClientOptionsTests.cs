@@ -1,3 +1,5 @@
+using AwesomeAssertions;
+
 namespace Joker.Api.Test;
 
 /// <summary>
@@ -17,9 +19,9 @@ public class JokerSvcClientOptionsTests
 		};
 
 		// Assert
-		Assert.Equal("example.com", options.Domain);
-		Assert.Equal("svc-user", options.SvcUsername);
-		Assert.Equal("svc-pass", options.SvcPassword);
+		_ = options.Domain.Should().Be("example.com");
+		_ = options.SvcUsername.Should().Be("svc-user");
+		_ = options.SvcPassword.Should().Be("svc-pass");
 	}
 
 	[Fact]
@@ -34,11 +36,11 @@ public class JokerSvcClientOptionsTests
 		};
 
 		// Assert
-		Assert.Equal("https://dmapi.joker.com", options.BaseUrl);
+		_ = options.BaseUrl.Should().Be("https://dmapi.joker.com");
 		Assert.Equal(TimeSpan.FromSeconds(30), options.RequestTimeout);
-		Assert.False(options.EnableRequestLogging);
-		Assert.False(options.EnableResponseLogging);
-		Assert.Null(options.Logger);
+		_ = options.EnableRequestLogging.Should().BeFalse();
+		_ = options.EnableResponseLogging.Should().BeFalse();
+		_ = options.Logger.Should().BeNull();
 	}
 
 	[Fact]
@@ -57,9 +59,9 @@ public class JokerSvcClientOptionsTests
 		};
 
 		// Assert
-		Assert.Equal("https://custom.api.url", options.BaseUrl);
+		_ = options.BaseUrl.Should().Be("https://custom.api.url");
 		Assert.Equal(TimeSpan.FromMinutes(2), options.RequestTimeout);
-		Assert.True(options.EnableRequestLogging);
-		Assert.True(options.EnableResponseLogging);
+		_ = options.EnableRequestLogging.Should().BeTrue();
+		_ = options.EnableResponseLogging.Should().BeTrue();
 	}
 }

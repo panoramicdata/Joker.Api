@@ -4,6 +4,22 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path=".codacy.yml" />
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="codacy-api-key.txt" />
+    <File Path="codacy-key.txt" />
+    <File Path="dotnet.config" />
+    <File Path="GitVersion.yml" />
+    <File Path="Joker.Api.dic" />
+    <File Path="LICENSE" />
+    <File Path="nuget-key.txt" />
+    <File Path="Publish.ps1" />
+    <File Path="README.md" />
+    <File Path="Test.ps1" />
+    <File Path="version.json" />
+  </Folder>
   <Project Path="Joker.Api.Test/Joker.Api.Test.csproj" />
   <Project Path="Joker.Api/Joker.Api.csproj" />
 </Solution>

@@ -1,38 +1,19 @@
-using Joker.Api.Models;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
+using AwesomeAssertions;
 
 namespace Joker.Api.Test;
 
 /// <summary>
 /// Tests for additional DMAPI query operations
 /// </summary>
-public class JokerClientQueryTests : IDisposable
+public class JokerClientQueryTests : TestBase<JokerClientQueryTests>, IDisposable
 {
 	private readonly JokerClient _client;
-	private readonly ILogger<JokerClientQueryTests> _logger;
-	private readonly IConfiguration _configuration;
 
 	public JokerClientQueryTests()
 	{
-		// Setup logging
-		var loggerFactory = LoggerFactory.Create(builder =>
-		{
-			builder.AddConsole();
-			builder.AddDebug();
-			builder.SetMinimumLevel(LogLevel.Debug);
-		});
-
-		_logger = loggerFactory.CreateLogger<JokerClientQueryTests>();
-
-		// Load configuration
-		_configuration = new ConfigurationBuilder()
-			.AddUserSecrets<JokerClientQueryTests>()
-			.Build();
-
 		// Create client with read-only API key
 		var apiKey = _configuration["JokerApi:ApiKey:ReadOnly"];
-		
+
 		if (string.IsNullOrWhiteSpace(apiKey))
 		{
 			throw new InvalidOperationException("ReadOnly API key not configured in user secrets");
@@ -72,7 +53,7 @@ public class JokerClientQueryTests : IDisposable
 		}
 
 		// With read-only key, this should work
-		Assert.NotNull(response);
+		_ = response.Should().NotBeNull();
 	}
 
 	[Fact]
@@ -86,7 +67,7 @@ public class JokerClientQueryTests : IDisposable
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
-		Assert.NotNull(response);
+		_ = response.Should().NotBeNull();
 		_logger.LogInformation("QueryContactList with pattern - StatusCode: {StatusCode}", response.StatusCode);
 	}
 
@@ -101,7 +82,7 @@ public class JokerClientQueryTests : IDisposable
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
-		Assert.NotNull(response);
+		_ = response.Should().NotBeNull();
 		_logger.LogInformation("QueryContactList extended - StatusCode: {StatusCode}", response.StatusCode);
 	}
 
@@ -115,7 +96,7 @@ public class JokerClientQueryTests : IDisposable
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
-		Assert.NotNull(response);
+		_ = response.Should().NotBeNull();
 		_logger.LogInformation("QueryNameserverList - StatusCode: {StatusCode}", response.StatusCode);
 	}
 
@@ -129,7 +110,7 @@ public class JokerClientQueryTests : IDisposable
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
-		Assert.NotNull(response);
+		_ = response.Should().NotBeNull();
 		_logger.LogInformation("QueryNameserverList with IPs - StatusCode: {StatusCode}", response.StatusCode);
 	}
 
@@ -140,9 +121,9 @@ public class JokerClientQueryTests : IDisposable
 		var response = await _client.QueryProfileAsync(TestContext.Current.CancellationToken);
 
 		// Assert
-		Assert.NotNull(response);
+		_ = response.Should().NotBeNull();
 		_logger.LogInformation("QueryProfile - StatusCode: {StatusCode}", response.StatusCode);
-		
+
 		if (!string.IsNullOrWhiteSpace(response.AccountBalance))
 		{
 			_logger.LogInformation("Account Balance: {Balance}", response.AccountBalance);
@@ -160,7 +141,7 @@ public class JokerClientQueryTests : IDisposable
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
-		Assert.NotNull(response);
+		_ = response.Should().NotBeNull();
 		_logger.LogInformation("ResultList - StatusCode: {StatusCode}", response.StatusCode);
 	}
 
@@ -175,7 +156,7 @@ public class JokerClientQueryTests : IDisposable
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
-		Assert.NotNull(response);
+		_ = response.Should().NotBeNull();
 		_logger.LogInformation("ResultList (pending) - StatusCode: {StatusCode}", response.StatusCode);
 	}
 
@@ -216,8 +197,8 @@ public class JokerClientQueryTests : IDisposable
 			TestContext.Current.CancellationToken);
 
 		// Assert
-		Assert.NotNull(response);
-		_logger.LogInformation("DomainGetProperty for {Domain} - StatusCode: {StatusCode}", 
+		_ = response.Should().NotBeNull();
+		_logger.LogInformation("DomainGetProperty for {Domain} - StatusCode: {StatusCode}",
 			domainName, response.StatusCode);
 	}
 
@@ -231,22 +212,18 @@ public class JokerClientQueryTests : IDisposable
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
-		Assert.NotNull(response);
+		_ = response.Should().NotBeNull();
 		_logger.LogInformation("ResultRetrieve (invalid) - StatusCode: {StatusCode}", response.StatusCode);
 	}
 
 	[Fact]
-	public async Task ResultRetrieveAsync_RequiresEitherProcIdOrSvTrId()
-	{
-		// Act & Assert
-		await Assert.ThrowsAsync<ArgumentException>(async () =>
-		{
-			await _client.ResultRetrieveAsync(
+	public async Task ResultRetrieveAsync_RequiresEitherProcIdOrSvTrId() =>
+		_ = await ((Func<Task<Models.DmapiResponse>>?)(async () => await _client.ResultRetrieveAsync(
 				procId: null,
 				svTrId: null,
-				cancellationToken: TestContext.Current.CancellationToken);
-		});
-	}
+				cancellationToken: TestContext.Current.CancellationToken)))
+		.Should()
+		.ThrowExactlyAsync<ArgumentException>();
 
 	[Fact]
 	public async Task LogoutAsync_WithUsernamePassword_DisposesSession()
@@ -273,7 +250,7 @@ public class JokerClientQueryTests : IDisposable
 
 		// First login to establish session
 		var loginResponse = await testClient.LoginAsync(TestContext.Current.CancellationToken);
-		Assert.NotNull(loginResponse);
+		_ = loginResponse.Should().NotBeNull();
 
 		if (!loginResponse.IsSuccess || string.IsNullOrWhiteSpace(loginResponse.AuthSid))
 		{
@@ -285,7 +262,7 @@ public class JokerClientQueryTests : IDisposable
 		var logoutResponse = await testClient.LogoutAsync(TestContext.Current.CancellationToken);
 
 		// Assert
-		Assert.NotNull(logoutResponse);
+		_ = logoutResponse.Should().NotBeNull();
 		_logger.LogInformation("Logout - StatusCode: {StatusCode}", logoutResponse.StatusCode);
 	}
 
@@ -301,7 +278,7 @@ public class JokerClientQueryTests : IDisposable
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
-		Assert.NotNull(response);
+		_ = response.Should().NotBeNull();
 		_logger.LogInformation("QueryDomainList (all options) - StatusCode: {StatusCode}", response.StatusCode);
 	}
 
@@ -316,13 +293,14 @@ public class JokerClientQueryTests : IDisposable
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
-		Assert.NotNull(response);
+		_ = response.Should().NotBeNull();
 		_logger.LogInformation("ResultList (all options) - StatusCode: {StatusCode}", response.StatusCode);
 	}
 
 	public void Dispose()
 	{
 		_client?.Dispose();
+		(_serviceProvider as IDisposable)?.Dispose();
 		GC.SuppressFinalize(this);
 	}
 }

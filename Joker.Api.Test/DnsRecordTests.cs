@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using Joker.Api.Models;
 
 namespace Joker.Api.Test;
@@ -19,11 +20,11 @@ public class DnsRecordTests
 		var record = DnsRecord.CreateTxtRecord(label, value, ttl);
 
 		// Assert
-		Assert.Equal("TXT", record.Type);
-		Assert.Equal(label, record.Label);
-		Assert.Equal(value, record.Value);
+		record.Type.Should().Be("TXT");
+		record.Label.Should().Be(label);
+		record.Value.Should().Be(value);
 		Assert.Equal(ttl, record.Ttl);
-		Assert.Null(record.Priority);
+		record.Priority.Should().BeNull();
 	}
 
 	[Fact]
@@ -37,10 +38,10 @@ public class DnsRecordTests
 		var record = DnsRecord.CreateTxtRecord(label, value);
 
 		// Assert
-		Assert.Equal("TXT", record.Type);
-		Assert.Equal(label, record.Label);
-		Assert.Equal(value, record.Value);
-		Assert.Null(record.Ttl);
+		record.Type.Should().Be("TXT");
+		record.Label.Should().Be(label);
+		record.Value.Should().Be(value);
+		record.Ttl.Should().BeNull();
 	}
 
 	[Fact]
@@ -55,11 +56,11 @@ public class DnsRecordTests
 		var record = DnsRecord.CreateARecord(label, ipAddress, ttl);
 
 		// Assert
-		Assert.Equal("A", record.Type);
-		Assert.Equal(label, record.Label);
-		Assert.Equal(ipAddress, record.Value);
+		record.Type.Should().Be("A");
+		record.Label.Should().Be(label);
+		record.Value.Should().Be(ipAddress);
 		Assert.Equal(ttl, record.Ttl);
-		Assert.Null(record.Priority);
+		record.Priority.Should().BeNull();
 	}
 
 	[Fact]
@@ -73,8 +74,8 @@ public class DnsRecordTests
 		var record = DnsRecord.CreateARecord(label, ipAddress, null);
 
 		// Assert
-		Assert.Equal("A", record.Type);
-		Assert.Null(record.Ttl);
+		record.Type.Should().Be("A");
+		record.Ttl.Should().BeNull();
 	}
 
 	[Fact]
@@ -89,11 +90,11 @@ public class DnsRecordTests
 		var record = DnsRecord.CreateCnameRecord(label, target, ttl);
 
 		// Assert
-		Assert.Equal("CNAME", record.Type);
-		Assert.Equal(label, record.Label);
-		Assert.Equal(target, record.Value);
+		record.Type.Should().Be("CNAME");
+		record.Label.Should().Be(label);
+		record.Value.Should().Be(target);
 		Assert.Equal(ttl, record.Ttl);
-		Assert.Null(record.Priority);
+		record.Priority.Should().BeNull();
 	}
 
 	[Fact]
@@ -107,8 +108,8 @@ public class DnsRecordTests
 		var record = DnsRecord.CreateCnameRecord(label, target);
 
 		// Assert
-		Assert.Equal("CNAME", record.Type);
-		Assert.Null(record.Ttl);
+		record.Type.Should().Be("CNAME");
+		record.Ttl.Should().BeNull();
 	}
 
 	[Fact]
@@ -126,7 +127,7 @@ public class DnsRecordTests
 		var result = record.ToZoneFormat();
 
 		// Assert
-		Assert.Equal("A:www:192.168.1.1", result);
+		result.Should().Be("A:www:192.168.1.1");
 	}
 
 	[Fact]
@@ -145,7 +146,7 @@ public class DnsRecordTests
 		var result = record.ToZoneFormat();
 
 		// Assert
-		Assert.Equal("A:www:192.168.1.1:3600", result);
+		result.Should().Be("A:www:192.168.1.1:3600");
 	}
 
 	[Fact]
@@ -164,7 +165,7 @@ public class DnsRecordTests
 		var result = record.ToZoneFormat();
 
 		// Assert
-		Assert.Equal("MX:@:10:mail.example.com", result);
+		result.Should().Be("MX:@:10:mail.example.com");
 	}
 
 	[Fact]
@@ -184,7 +185,7 @@ public class DnsRecordTests
 		var result = record.ToZoneFormat();
 
 		// Assert
-		Assert.Equal("MX:@:10:mail.example.com:7200", result);
+		result.Should().Be("MX:@:10:mail.example.com:7200");
 	}
 
 	[Fact]
@@ -201,9 +202,9 @@ public class DnsRecordTests
 		};
 
 		// Assert
-		Assert.Equal("TXT", record.Type);
-		Assert.Equal("test", record.Label);
-		Assert.Equal("value", record.Value);
+		record.Type.Should().Be("TXT");
+		record.Label.Should().Be("test");
+		record.Value.Should().Be("value");
 		Assert.Equal(300, record.Ttl);
 		Assert.Equal(5, record.Priority);
 	}

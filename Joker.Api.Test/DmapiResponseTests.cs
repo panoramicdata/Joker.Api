@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using Joker.Api.Models;
 
 namespace Joker.Api.Test;
@@ -14,12 +15,12 @@ public class DmapiResponseTests
 		var response = new DmapiResponse();
 
 		// Assert
-		Assert.NotNull(response.Errors);
-		Assert.Empty(response.Errors);
-		Assert.NotNull(response.Warnings);
-		Assert.Empty(response.Warnings);
-		Assert.NotNull(response.Headers);
-		Assert.Empty(response.Headers);
+		response.Errors.Should().NotBeNull();
+		response.Errors.Should().BeEmpty();
+		response.Warnings.Should().NotBeNull();
+		response.Warnings.Should().BeEmpty();
+		response.Headers.Should().NotBeNull();
+		response.Headers.Should().BeEmpty();
 	}
 
 	[Fact]
@@ -33,7 +34,7 @@ public class DmapiResponseTests
 		};
 
 		// Act & Assert
-		Assert.True(response.IsSuccess);
+		response.IsSuccess.Should().BeTrue();
 	}
 
 	[Fact]
@@ -47,7 +48,7 @@ public class DmapiResponseTests
 		};
 
 		// Act & Assert
-		Assert.False(response.IsSuccess);
+		response.IsSuccess.Should().BeFalse();
 	}
 
 	[Fact]
@@ -61,7 +62,7 @@ public class DmapiResponseTests
 		};
 
 		// Act & Assert
-		Assert.False(response.IsSuccess);
+		response.IsSuccess.Should().BeFalse();
 	}
 
 	[Fact]
@@ -75,7 +76,7 @@ public class DmapiResponseTests
 		};
 
 		// Act & Assert
-		Assert.False(response.IsSuccess);
+		response.IsSuccess.Should().BeFalse();
 	}
 
 	[Fact]
@@ -89,7 +90,7 @@ public class DmapiResponseTests
 		};
 
 		// Act & Assert
-		Assert.True(response.IsSuccess);
+		response.IsSuccess.Should().BeTrue();
 	}
 
 	[Fact]
@@ -110,15 +111,15 @@ public class DmapiResponseTests
 		};
 
 		// Assert
-		Assert.Equal("test-auth-sid", response.AuthSid);
-		Assert.Equal("test-uid", response.Uid);
-		Assert.Equal("test-tracking-id", response.TrackingId);
+		response.AuthSid.Should().Be("test-auth-sid");
+		response.Uid.Should().Be("test-uid");
+		response.TrackingId.Should().Be("test-tracking-id");
 		Assert.Equal(200, response.StatusCode);
-		Assert.Equal("OK", response.StatusText);
-		Assert.Equal("ACK", response.Result);
-		Assert.Equal("test-proc-id", response.ProcId);
-		Assert.Equal("100.00", response.AccountBalance);
-		Assert.Equal("test body", response.Body);
+		response.StatusText.Should().Be("OK");
+		response.Result.Should().Be("ACK");
+		response.ProcId.Should().Be("test-proc-id");
+		response.AccountBalance.Should().Be("100.00");
+		response.Body.Should().Be("test body");
 	}
 
 	[Fact]
@@ -133,8 +134,8 @@ public class DmapiResponseTests
 
 		// Assert
 		Assert.Equal(2, response.Errors.Count);
-		Assert.Contains("Error 1", response.Errors);
-		Assert.Contains("Error 2", response.Errors);
+		response.Errors.Should().Contain("Error 1");
+		response.Errors.Should().Contain("Error 2");
 	}
 
 	[Fact]
@@ -149,8 +150,8 @@ public class DmapiResponseTests
 
 		// Assert
 		Assert.Equal(2, response.Warnings.Count);
-		Assert.Contains("Warning 1", response.Warnings);
-		Assert.Contains("Warning 2", response.Warnings);
+		response.Warnings.Should().Contain("Warning 1");
+		response.Warnings.Should().Contain("Warning 2");
 	}
 
 	[Fact]
@@ -165,8 +166,8 @@ public class DmapiResponseTests
 
 		// Assert
 		Assert.Equal(2, response.Headers.Count);
-		Assert.Equal("text/plain", response.Headers["Content-Type"]);
-		Assert.Equal("100", response.Headers["Content-Length"]);
+		response.Headers["Content-Type"].Should().Be("text/plain");
+		response.Headers["Content-Length"].Should().Be("100");
 	}
 
 	[Fact]
@@ -179,7 +180,7 @@ public class DmapiResponseTests
 		response.Headers["Content-Type"] = "text/plain";
 
 		// Assert
-		Assert.Equal("text/plain", response.Headers["content-type"]);
-		Assert.Equal("text/plain", response.Headers["CONTENT-TYPE"]);
+		response.Headers["content-type"].Should().Be("text/plain");
+		response.Headers["CONTENT-TYPE"].Should().Be("text/plain");
 	}
 }

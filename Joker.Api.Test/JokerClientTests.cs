@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using Joker.Api;
 
 namespace Joker.Api.Test;
@@ -17,7 +18,7 @@ public class JokerClientTests
 		using var client = new JokerClient(options);
 
 		// Assert
-		Assert.NotNull(client);
+		_ = client.Should().NotBeNull();
 	}
 
 	[Fact]
@@ -34,7 +35,7 @@ public class JokerClientTests
 		using var client = new JokerClient(options);
 
 		// Assert
-		Assert.NotNull(client);
+		_ = client.Should().NotBeNull();
 	}
 
 	[Fact]

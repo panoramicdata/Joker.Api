@@ -1,6 +1,4 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using AwesomeAssertions;
 using Joker.Api.Models;
 
 namespace Joker.Api.Test;
@@ -9,34 +7,17 @@ namespace Joker.Api.Test;
 /// Integration tests for the Joker SVC (Dynamic DNS) client
 /// These tests require SVC credentials from Dynamic DNS settings in Joker.com dashboard
 /// </summary>
-public class JokerSvcIntegrationTests : IDisposable
+public class JokerSvcIntegrationTests : TestBase<JokerSvcIntegrationTests>, IDisposable
 {
 	private readonly JokerSvcClient? _client;
-	private readonly ILogger<JokerSvcIntegrationTests> _logger;
 	private readonly bool _hasCredentials;
 
 	public JokerSvcIntegrationTests()
 	{
-		// Build configuration from user secrets
-		var configuration = new ConfigurationBuilder()
-			.AddUserSecrets<JokerSvcIntegrationTests>()
-			.Build();
-
-		// Setup logging
-		var services = new ServiceCollection();
-		services.AddLogging(builder =>
-		{
-			builder.AddConsole();
-			builder.SetMinimumLevel(LogLevel.Debug);
-		});
-
-		var serviceProvider = services.BuildServiceProvider();
-		_logger = serviceProvider.GetRequiredService<ILogger<JokerSvcIntegrationTests>>();
-
 		// Check if SVC credentials are configured
-		var domain = configuration["JokerSvc:Domain"];
-		var svcUsername = configuration["JokerSvc:SvcUsername"];
-		var svcPassword = configuration["JokerSvc:SvcPassword"];
+		var domain = _configuration["JokerSvc:Domain"];
+		var svcUsername = _configuration["JokerSvc:SvcUsername"];
+		var svcPassword = _configuration["JokerSvc:SvcPassword"];
 
 		_hasCredentials = !string.IsNullOrWhiteSpace(domain) &&
 		                  !string.IsNullOrWhiteSpace(svcUsername) &&
@@ -91,9 +72,8 @@ public class JokerSvcIntegrationTests : IDisposable
 		}
 
 		// Assert
-		Assert.NotNull(response);
-		Assert.True(response.IsSuccess, 
-			$"GetDnsZone failed: {response.StatusText}. Errors: {string.Join(", ", response.Errors)}");
+		response.Should().NotBeNull();
+		response.IsSuccess.Should().BeTrue($"GetDnsZone failed: {response.StatusText}. Errors: {string.Join(", ", response.Errors)}");
 		
 		_logger.LogInformation("✓ SVC DNS zone retrieval successful");
 	}
@@ -112,9 +92,8 @@ public class JokerSvcIntegrationTests : IDisposable
 		var response = await _client.GetDnsZoneAsync(TestContext.Current.CancellationToken);
 
 		// Assert response is successful
-		Assert.True(response.IsSuccess, 
-			$"GetDnsZone failed: {response.StatusText}");
-		Assert.NotNull(response.Body);
+		response.IsSuccess.Should().BeTrue($"GetDnsZone failed: {response.StatusText}");
+		response.Body.Should().NotBeNull();
 		Assert.NotEmpty(response.Body);
 
 		// Parse DNS records and count by type
@@ -147,7 +126,7 @@ public class JokerSvcIntegrationTests : IDisposable
 
 		// Assert we have at least some common record types
 		var totalRecords = recordCounts.Values.Sum();
-		Assert.True(totalRecords > 0, "DNS zone should contain at least one record");
+		(totalRecords > 0).Should().BeTrue("DNS zone should contain at least one record");
 		
 		_logger.LogInformation("✓ DNS zone contains {TotalRecords} total records", totalRecords);
 		_logger.LogInformation("✓ Found {TypeCount} different record types", recordCounts.Count);
@@ -192,9 +171,8 @@ public class JokerSvcIntegrationTests : IDisposable
 		}
 
 		// Assert add succeeded
-		Assert.NotNull(addResponse);
-		Assert.True(addResponse.IsSuccess,
-			$"SetTxtRecord failed: {addResponse.StatusText}. Errors: {string.Join(", ", addResponse.Errors)}");
+		addResponse.Should().NotBeNull();
+		addResponse.IsSuccess.Should().BeTrue($"SetTxtRecord failed: {addResponse.StatusText}. Errors: {string.Join(", ", addResponse.Errors)}");
 
 		_logger.LogInformation("✓ TXT record added successfully");
 
@@ -203,9 +181,8 @@ public class JokerSvcIntegrationTests : IDisposable
 		var deleteResponse = await _client.DeleteTxtRecordAsync(testLabel, TestContext.Current.CancellationToken);
 
 		// Assert delete succeeded
-		Assert.NotNull(deleteResponse);
-		Assert.True(deleteResponse.IsSuccess,
-			$"DeleteTxtRecord failed: {deleteResponse.StatusText}. Errors: {string.Join(", ", deleteResponse.Errors)}");
+		deleteResponse.Should().NotBeNull();
+		deleteResponse.IsSuccess.Should().BeTrue($"DeleteTxtRecord failed: {deleteResponse.StatusText}. Errors: {string.Join(", ", deleteResponse.Errors)}");
 
 		_logger.LogInformation("✓ TXT record deleted successfully");
 		_logger.LogInformation("✓ SVC DNS management test completed successfully");
@@ -214,6 +191,7 @@ public class JokerSvcIntegrationTests : IDisposable
 	public void Dispose()
 	{
 		_client?.Dispose();
+		(_serviceProvider as IDisposable)?.Dispose();
 		GC.SuppressFinalize(this);
 	}
 }

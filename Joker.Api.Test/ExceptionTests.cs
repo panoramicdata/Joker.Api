@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using Joker.Api.Exceptions;
 
 namespace Joker.Api.Test;
@@ -17,10 +18,10 @@ public class ExceptionTests
 		var exception = new JokerApiException(message);
 
 		// Assert
-		Assert.Equal(message, exception.Message);
-		Assert.Null(exception.StatusCode);
-		Assert.Null(exception.ErrorDetails);
-		Assert.Null(exception.InnerException);
+		exception.Message.Should().Be(message);
+		exception.StatusCode.Should().BeNull();
+		exception.ErrorDetails.Should().BeNull();
+		exception.InnerException.Should().BeNull();
 	}
 
 	[Fact]
@@ -34,10 +35,10 @@ public class ExceptionTests
 		var exception = new JokerApiException(message, innerException);
 
 		// Assert
-		Assert.Equal(message, exception.Message);
-		Assert.Same(innerException, exception.InnerException);
-		Assert.Null(exception.StatusCode);
-		Assert.Null(exception.ErrorDetails);
+		exception.Message.Should().Be(message);
+		exception.InnerException.Should().BeSameAs(innerException);
+		exception.StatusCode.Should().BeNull();
+		exception.ErrorDetails.Should().BeNull();
 	}
 
 	[Fact]
@@ -52,10 +53,10 @@ public class ExceptionTests
 		var exception = new JokerApiException(message, statusCode, errorDetails);
 
 		// Assert
-		Assert.Equal(message, exception.Message);
+		exception.Message.Should().Be(message);
 		Assert.Equal(statusCode, exception.StatusCode);
-		Assert.Equal(errorDetails, exception.ErrorDetails);
-		Assert.Null(exception.InnerException);
+		exception.ErrorDetails.Should().Be(errorDetails);
+		exception.InnerException.Should().BeNull();
 	}
 
 	[Fact]
@@ -69,9 +70,9 @@ public class ExceptionTests
 		var exception = new JokerApiException(message, statusCode);
 
 		// Assert
-		Assert.Equal(message, exception.Message);
+		exception.Message.Should().Be(message);
 		Assert.Equal(statusCode, exception.StatusCode);
-		Assert.Null(exception.ErrorDetails);
+		exception.ErrorDetails.Should().BeNull();
 	}
 
 	[Fact]
@@ -84,9 +85,9 @@ public class ExceptionTests
 		var exception = new JokerAuthenticationException(message);
 
 		// Assert
-		Assert.Equal(message, exception.Message);
+		exception.Message.Should().Be(message);
 		Assert.Equal(401, exception.StatusCode);
-		Assert.Null(exception.InnerException);
+		exception.InnerException.Should().BeNull();
 	}
 
 	[Fact]
@@ -100,8 +101,8 @@ public class ExceptionTests
 		var exception = new JokerAuthenticationException(message, innerException);
 
 		// Assert
-		Assert.Equal(message, exception.Message);
-		Assert.Same(innerException, exception.InnerException);
+		exception.Message.Should().Be(message);
+		exception.InnerException.Should().BeSameAs(innerException);
 	}
 
 	[Fact]
@@ -114,9 +115,9 @@ public class ExceptionTests
 		var exception = new JokerNotFoundException(message);
 
 		// Assert
-		Assert.Equal(message, exception.Message);
+		exception.Message.Should().Be(message);
 		Assert.Equal(404, exception.StatusCode);
-		Assert.Null(exception.InnerException);
+		exception.InnerException.Should().BeNull();
 	}
 
 	[Fact]
@@ -130,8 +131,8 @@ public class ExceptionTests
 		var exception = new JokerNotFoundException(message, resourceId);
 
 		// Assert
-		Assert.Contains(message, exception.Message);
-		Assert.Contains(resourceId, exception.Message);
+		exception.Message.Should().Contain(message);
+		exception.Message.Should().Contain(resourceId);
 		Assert.Equal(404, exception.StatusCode);
 	}
 }
