@@ -416,3 +416,15 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# NuGet API Key (for Publish.ps1 script)
+nuget-key.txt
+
+# Codacy Project Token (for Publish.ps1 script - coverage upload)
+codacy-key.txt
+
+# Codacy Account API Token (for Test.ps1 script - issue checking)
+codacy-api-key.txt
+
+
+

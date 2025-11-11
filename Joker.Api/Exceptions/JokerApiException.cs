@@ -39,8 +39,18 @@ public class JokerApiException : Exception
 	/// </summary>
 	/// <param name="message">The error message</param>
 	/// <param name="statusCode">The HTTP status code</param>
+	public JokerApiException(string message, int statusCode)
+		: this(message, statusCode, null)
+	{
+	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="JokerApiException"/> class
+	/// </summary>
+	/// <param name="message">The error message</param>
+	/// <param name="statusCode">The HTTP status code</param>
 	/// <param name="errorDetails">The error details from the API</param>
-	public JokerApiException(string message, int statusCode, string? errorDetails = null)
+	public JokerApiException(string message, int statusCode, string? errorDetails)
 		: base(message)
 	{
 		StatusCode = statusCode;

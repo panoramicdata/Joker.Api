@@ -58,9 +58,18 @@ public class DnsRecord
 	/// </summary>
 	/// <param name="label">The subdomain label</param>
 	/// <param name="value">The TXT record value</param>
-	/// <param name="ttl">Optional TTL</param>
 	/// <returns>DNS TXT record</returns>
-	public static DnsRecord CreateTxtRecord(string label, string value, int? ttl = null) => new()
+	public static DnsRecord CreateTxtRecord(string label, string value) =>
+		CreateTxtRecord(label, value, null);
+
+	/// <summary>
+	/// Creates a TXT record with TTL
+	/// </summary>
+	/// <param name="label">The subdomain label</param>
+	/// <param name="value">The TXT record value</param>
+	/// <param name="ttl">TTL in seconds</param>
+	/// <returns>DNS TXT record</returns>
+	public static DnsRecord CreateTxtRecord(string label, string value, int? ttl) => new()
 	{
 		Type = "TXT",
 		Label = label,
@@ -88,9 +97,18 @@ public class DnsRecord
 	/// </summary>
 	/// <param name="label">The subdomain label</param>
 	/// <param name="target">The CNAME target</param>
-	/// <param name="ttl">Optional TTL</param>
 	/// <returns>DNS CNAME record</returns>
-	public static DnsRecord CreateCnameRecord(string label, string target, int? ttl = null) => new()
+	public static DnsRecord CreateCnameRecord(string label, string target) =>
+		CreateCnameRecord(label, target, null);
+
+	/// <summary>
+	/// Creates a CNAME record with TTL
+	/// </summary>
+	/// <param name="label">The subdomain label</param>
+	/// <param name="target">The CNAME target</param>
+	/// <param name="ttl">TTL in seconds</param>
+	/// <returns>DNS CNAME record</returns>
+	public static DnsRecord CreateCnameRecord(string label, string target, int? ttl) => new()
 	{
 		Type = "CNAME",
 		Label = label,

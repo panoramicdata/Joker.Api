@@ -44,6 +44,17 @@ Joker.Api supports multiple authentication methods:
 2. **DMAPI with API Key** - Recommended for reseller accounts
 3. **DMAPI with Username/Password** - Alternative for reseller accounts
 
+#### API Key Permission Levels
+
+Joker.com supports different API key types with varying permission levels:
+
+- **Full Access** - Complete read and write access to all API operations
+- **Read-Only** - Can only query and retrieve information, cannot make modifications
+- **Modify-Only** - Can modify existing resources but cannot create new ones
+- **Whois-Only** - Can only perform WHOIS queries, no other operations allowed
+
+When creating API keys in your Joker.com reseller dashboard, select the appropriate permission level based on your security requirements. For automated systems that only need to query information (e.g., monitoring tools), use read-only or whois-only keys to minimize security risk.
+
 ### 1. SVC Client (DNS Management - No Reseller Account Required)
 
 Perfect for automating DNS updates, ACME DNS-01 challenges (Let's Encrypt), and managing DNS records.
@@ -245,11 +256,20 @@ We welcome contributions from the community! Here's how you can help:
 
 3. **Set up User Secrets for testing**:
    
+   The test suite supports different API key permission levels. You can configure one or more:
+   
    Using API Key (recommended):
    ```bash
    cd Joker.Api.Test
    dotnet user-secrets init
+   # Default API key for most tests
    dotnet user-secrets set "JokerApi:ApiKey" "your-api-key"
+   
+   # Optional: Configure specific permission levels for permission testing
+   dotnet user-secrets set "JokerApi:ApiKey:Full" "your-full-access-key"
+   dotnet user-secrets set "JokerApi:ApiKey:ReadOnly" "your-read-only-key"
+   dotnet user-secrets set "JokerApi:ApiKey:ModifyOnly" "your-modify-only-key"
+   dotnet user-secrets set "JokerApi:ApiKey:WhoisOnly" "your-whois-only-key"
    ```
    
    Or using Username/Password:
@@ -258,6 +278,13 @@ We welcome contributions from the community! Here's how you can help:
    dotnet user-secrets init
    dotnet user-secrets set "JokerApi:Username" "user@joker.com"
    dotnet user-secrets set "JokerApi:Password" "your-password"
+   ```
+   
+   For SVC (Dynamic DNS) testing:
+   ```bash
+   dotnet user-secrets set "JokerSvc:Domain" "yourdomain.com"
+   dotnet user-secrets set "JokerSvc:SvcUsername" "svc-username"
+   dotnet user-secrets set "JokerSvc:SvcPassword" "svc-password"
    ```
 
 4. **Build and test**:
@@ -298,3 +325,13 @@ Copyright © 2025 Panoramic Data Limited. All rights reserved.
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes and releases.
+
+---
+
+### Development
+
+This project was created entirely at the command line using:
+- **[GitHub Copilot CLI](https://githubnext.com/projects/copilot-cli)** - AI-powered command-line assistant
+- **[Claude Sonnet 4.5](https://www.anthropic.com/claude)** - Advanced AI coding assistant
+
+No traditional IDE was used in the development of this library. All code was written, tested, and debugged using AI-assisted command-line tools, demonstrating the power of modern AI development workflows.

@@ -47,7 +47,7 @@ public class JokerSvcClient : IDisposable
 	/// <summary>
 	/// Ensures we have a valid authentication session
 	/// </summary>
-	private async Task EnsureAuthenticatedAsync(CancellationToken cancellationToken = default)
+	private async Task EnsureAuthenticatedAsync(CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrWhiteSpace(_authSid))
 		{
@@ -74,7 +74,7 @@ public class JokerSvcClient : IDisposable
 	/// </summary>
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>The DNS zone response</returns>
-	public async Task<DmapiResponse> GetDnsZoneAsync(CancellationToken cancellationToken = default)
+	public async Task<DmapiResponse> GetDnsZoneAsync(CancellationToken cancellationToken)
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 
@@ -100,7 +100,7 @@ public class JokerSvcClient : IDisposable
 	/// <param name="records">The DNS records to set</param>
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>The response from the DNS zone update</returns>
-	public async Task<DmapiResponse> SetDnsZoneAsync(IEnumerable<DnsRecord> records, CancellationToken cancellationToken = default)
+	public async Task<DmapiResponse> SetDnsZoneAsync(IEnumerable<DnsRecord> records, CancellationToken cancellationToken)
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 
@@ -135,8 +135,8 @@ public class JokerSvcClient : IDisposable
 	public async Task<DmapiResponse> SetTxtRecordAsync(
 		string label, 
 		string value, 
-		int? ttl = null,
-		CancellationToken cancellationToken = default)
+		int? ttl,
+		CancellationToken cancellationToken)
 	{
 		// Get existing zone
 		var currentZone = await GetDnsZoneAsync(cancellationToken).ConfigureAwait(false);
@@ -170,7 +170,7 @@ public class JokerSvcClient : IDisposable
 	/// <returns>The response from the DNS update</returns>
 	public async Task<DmapiResponse> DeleteTxtRecordAsync(
 		string label,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken)
 	{
 		// Get existing zone
 		var currentZone = await GetDnsZoneAsync(cancellationToken).ConfigureAwait(false);
@@ -346,6 +346,9 @@ public class JokerSvcClient : IDisposable
 							break;
 						case "warning":
 							response.Warnings.Add(headerValue);
+							break;
+						default:
+							// Unknown header - already stored in Headers dictionary
 							break;
 					}
 				}

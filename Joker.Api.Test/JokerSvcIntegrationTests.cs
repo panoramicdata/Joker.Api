@@ -99,6 +99,70 @@ public class JokerSvcIntegrationTests : IDisposable
 	}
 
 	[Fact]
+	public async Task GetDnsZone_ParsesRecordTypes_CountsNonZero()
+	{
+		// Skip if no SVC credentials configured
+		if (!_hasCredentials || _client == null)
+		{
+			_logger.LogWarning("Skipping test - no SVC credentials configured");
+			return;
+		}
+
+		// Act
+		var response = await _client.GetDnsZoneAsync(TestContext.Current.CancellationToken);
+
+		// Assert response is successful
+		Assert.True(response.IsSuccess, 
+			$"GetDnsZone failed: {response.StatusText}");
+		Assert.NotNull(response.Body);
+		Assert.NotEmpty(response.Body);
+
+		// Parse DNS records and count by type
+		var lines = response.Body.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+		var recordCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+		foreach (var line in lines)
+		{
+			var trimmedLine = line.Trim();
+			
+			// Skip comments and empty lines
+			if (string.IsNullOrWhiteSpace(trimmedLine) || trimmedLine.StartsWith(';'))
+				continue;
+
+			// Parse DNS record format: <label> <ttl> IN <type> <value>
+			var parts = trimmedLine.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+			if (parts.Length >= 4 && parts[2].Equals("IN", StringComparison.OrdinalIgnoreCase))
+			{
+				var recordType = parts[3].ToUpperInvariant();
+				recordCounts[recordType] = recordCounts.GetValueOrDefault(recordType) + 1;
+			}
+		}
+
+		// Log record counts
+		_logger.LogInformation("DNS Record Type Counts:");
+		foreach (var (recordType, count) in recordCounts.OrderBy(x => x.Key))
+		{
+			_logger.LogInformation("  {RecordType}: {Count}", recordType, count);
+		}
+
+		// Assert we have at least some common record types
+		var totalRecords = recordCounts.Values.Sum();
+		Assert.True(totalRecords > 0, "DNS zone should contain at least one record");
+		
+		_logger.LogInformation("✓ DNS zone contains {TotalRecords} total records", totalRecords);
+		_logger.LogInformation("✓ Found {TypeCount} different record types", recordCounts.Count);
+
+		// Most domains should have at least NS and SOA records
+		var hasNsRecords = recordCounts.ContainsKey("NS");
+		var hasSoaRecords = recordCounts.ContainsKey("SOA");
+		
+		if (hasNsRecords)
+			_logger.LogInformation("✓ Zone has NS (nameserver) records");
+		if (hasSoaRecords)
+			_logger.LogInformation("✓ Zone has SOA (start of authority) records");
+	}
+
+	[Fact]
 	public async Task SetTxtRecord_WithSvcCredentials_UpdatesRecord()
 	{
 		// Skip if no SVC credentials configured
