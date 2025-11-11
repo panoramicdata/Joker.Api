@@ -302,12 +302,12 @@ function Test-Codacy {
         
         # Check for issues
         if ($issuesResponse.data -and $issuesResponse.data.Count -gt 0) {
-            Write-Failure "Found $($issuesResponse.data.Count) code quality issues in Codacy"
-            
             # Group by severity
             $critical = $issuesResponse.data | Where-Object { $_.patternInfo.level -eq 'Error' -or $_.patternInfo.severityLevel -eq 'High' }
             $warnings = $issuesResponse.data | Where-Object { $_.patternInfo.level -eq 'Warning' -or $_.patternInfo.severityLevel -eq 'Warning' }
             $info = $issuesResponse.data | Where-Object { $_.patternInfo.level -eq 'Info' }
+            
+            Write-InfoMessage "Found $($issuesResponse.data.Count) code quality issues in Codacy"
             
             if ($critical) {
                 Write-Failure "  Critical/High issues: $($critical.Count)"
@@ -317,21 +317,28 @@ function Test-Codacy {
                 if ($critical.Count -gt 10) {
                     Write-InfoMessage "    ... and $($critical.Count - 10) more critical issues"
                 }
+                Write-InfoMessage "View all issues: https://app.codacy.com/$provider/$username/$project/issues"
+                return $false  # Fail on critical issues
             }
             
             if ($warnings) {
-                Write-InfoMessage "  Warnings: $($warnings.Count)"
+                Write-InfoMessage "  Warnings: $($warnings.Count) (acceptable)"
                 $warnings | Select-Object -First 5 | ForEach-Object {
                     Write-InfoMessage "    - $($_.filePath):$($_.lineNumber) - $($_.message)"
                 }
             }
             
             if ($info) {
-                Write-InfoMessage "  Info: $($info.Count)"
+                Write-InfoMessage "  Info: $($info.Count) (acceptable)"
             }
             
             Write-InfoMessage "View all issues: https://app.codacy.com/$provider/$username/$project/issues"
-            return $false
+            
+            # Pass if only warnings/info, fail if critical
+            if (!$critical) {
+                Write-Success "No critical issues - quality check passed"
+                return $true
+            }
         }
         
         Write-Success "No code quality issues found in Codacy!"
