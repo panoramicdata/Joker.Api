@@ -54,6 +54,9 @@ public class JokerClientQueryTests : IDisposable
 	{
 		// Act
 		var response = await _client.QueryContactListAsync(
+			pattern: null,
+			tld: null,
+			extendedFormat: false,
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
@@ -78,6 +81,8 @@ public class JokerClientQueryTests : IDisposable
 		// Act
 		var response = await _client.QueryContactListAsync(
 			pattern: "*",
+			tld: null,
+			extendedFormat: false,
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
@@ -90,6 +95,8 @@ public class JokerClientQueryTests : IDisposable
 	{
 		// Act
 		var response = await _client.QueryContactListAsync(
+			pattern: null,
+			tld: null,
 			extendedFormat: true,
 			cancellationToken: TestContext.Current.CancellationToken);
 
@@ -103,6 +110,8 @@ public class JokerClientQueryTests : IDisposable
 	{
 		// Act
 		var response = await _client.QueryNameserverListAsync(
+			pattern: null,
+			includeIps: false,
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
@@ -115,6 +124,7 @@ public class JokerClientQueryTests : IDisposable
 	{
 		// Act
 		var response = await _client.QueryNameserverListAsync(
+			pattern: null,
 			includeIps: true,
 			cancellationToken: TestContext.Current.CancellationToken);
 
@@ -144,6 +154,9 @@ public class JokerClientQueryTests : IDisposable
 	{
 		// Act
 		var response = await _client.ResultListAsync(
+			pending: false,
+			showAll: false,
+			period: null,
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
@@ -157,6 +170,8 @@ public class JokerClientQueryTests : IDisposable
 		// Act
 		var response = await _client.ResultListAsync(
 			pending: true,
+			showAll: false,
+			period: null,
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert
@@ -169,6 +184,10 @@ public class JokerClientQueryTests : IDisposable
 	{
 		// We need a domain name - skip if not available
 		var domainList = await _client.QueryDomainListAsync(
+			pattern: null,
+			showStatus: false,
+			showGrants: false,
+			showJokerNs: false,
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		if (!domainList.IsSuccess || string.IsNullOrWhiteSpace(domainList.Body))
@@ -208,6 +227,7 @@ public class JokerClientQueryTests : IDisposable
 		// Act - Try to retrieve with a non-existent proc ID
 		var response = await _client.ResultRetrieveAsync(
 			procId: "nonexistent-proc-id",
+			svTrId: null,
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert

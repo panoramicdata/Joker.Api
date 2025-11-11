@@ -70,7 +70,7 @@ public class DnsRecordTests
 		const string ipAddress = "10.0.0.1";
 
 		// Act
-		var record = DnsRecord.CreateARecord(label, ipAddress);
+		var record = DnsRecord.CreateARecord(label, ipAddress, null);
 
 		// Assert
 		Assert.Equal("A", record.Type);

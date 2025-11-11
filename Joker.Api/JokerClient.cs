@@ -99,11 +99,11 @@ public class JokerClient : IDisposable
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>The domain list response</returns>
 	public async Task<DmapiResponse> QueryDomainListAsync(
-		string? pattern = null,
-		bool showStatus = false,
-		bool showGrants = false,
-		bool showJokerNs = false,
-		CancellationToken cancellationToken = default!)
+		string? pattern,
+		bool showStatus,
+		bool showGrants,
+		bool showJokerNs,
+		CancellationToken cancellationToken)
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 		
@@ -150,10 +150,10 @@ public class JokerClient : IDisposable
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>The contact list response</returns>
 	public async Task<DmapiResponse> QueryContactListAsync(
-		string? pattern = null,
-		string? tld = null,
-		bool extendedFormat = false,
-		CancellationToken cancellationToken = default!)
+		string? pattern,
+		string? tld,
+		bool extendedFormat,
+		CancellationToken cancellationToken)
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 		
@@ -194,9 +194,9 @@ public class JokerClient : IDisposable
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>The nameserver list response</returns>
 	public async Task<DmapiResponse> QueryNameserverListAsync(
-		string? pattern = null,
-		bool includeIps = false,
-		CancellationToken cancellationToken = default!)
+		string? pattern,
+		bool includeIps,
+		CancellationToken cancellationToken)
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 		
@@ -256,10 +256,10 @@ public class JokerClient : IDisposable
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>The result list response</returns>
 	public async Task<DmapiResponse> ResultListAsync(
-		bool pending = false,
-		bool showAll = false,
-		int? period = null,
-		CancellationToken cancellationToken = default!)
+		bool pending,
+		bool showAll,
+		int? period,
+		CancellationToken cancellationToken)
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 		
@@ -300,9 +300,9 @@ public class JokerClient : IDisposable
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>The result response</returns>
 	public async Task<DmapiResponse> ResultRetrieveAsync(
-		string? procId = null,
-		string? svTrId = null,
-		CancellationToken cancellationToken = default!)
+		string? procId,
+		string? svTrId,
+		CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrWhiteSpace(procId) && string.IsNullOrWhiteSpace(svTrId))
 		{

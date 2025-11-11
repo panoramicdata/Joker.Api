@@ -119,6 +119,10 @@ public class JokerApiIntegrationTests : IDisposable
 	{
 		// Act
 		var response = await _client.QueryDomainListAsync(
+			pattern: null,
+			showStatus: false,
+			showGrants: false,
+			showJokerNs: false,
 			cancellationToken: TestContext.Current.CancellationToken);
 
 		// Assert - verify we can query domain list (may have permission errors with some API keys)

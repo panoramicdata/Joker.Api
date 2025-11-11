@@ -84,7 +84,7 @@ public class DnsRecord
 	/// <param name="ipAddress">The IPv4 address</param>
 	/// <param name="ttl">Optional TTL</param>
 	/// <returns>DNS A record</returns>
-	public static DnsRecord CreateARecord(string label, string ipAddress, int? ttl = null) => new()
+	public static DnsRecord CreateARecord(string label, string ipAddress, int? ttl) => new()
 	{
 		Type = "A",
 		Label = label,
