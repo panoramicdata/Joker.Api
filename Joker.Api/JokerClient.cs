@@ -596,54 +596,7 @@ public class JokerClient : IDisposable
 
 			if (!bodyStarted)
 			{
-				// Parse header line
-				var colonIndex = trimmedLine.IndexOf(':');
-				if (colonIndex > 0)
-				{
-					var headerName = trimmedLine[..colonIndex].Trim();
-					var headerValue = trimmedLine[(colonIndex + 1)..].Trim();
-
-					response.Headers[headerName] = headerValue;
-
-					// Map known headers to properties
-					switch (headerName.ToLowerInvariant())
-					{
-						case "auth-sid":
-							response.AuthSid = headerValue;
-							break;
-						case "uid":
-							response.Uid = headerValue;
-							break;
-						case "tracking-id":
-							response.TrackingId = headerValue;
-							break;
-						case "status-code":
-							_ = int.TryParse(headerValue, out var statusCode);
-							response.StatusCode = statusCode;
-							break;
-						case "status-text":
-							response.StatusText = headerValue;
-							break;
-						case "result":
-							response.Result = headerValue;
-							break;
-						case "proc-id":
-							response.ProcId = headerValue;
-							break;
-						case "account-balance":
-							response.AccountBalance = headerValue;
-							break;
-						case "error":
-							response.Errors.Add(headerValue);
-							break;
-						case "warning":
-							response.Warnings.Add(headerValue);
-							break;
-						default:
-							// Unknown header - already stored in Headers dictionary
-							break;
-					}
-				}
+				ParseHeaderLine(trimmedLine, response);
 			}
 			else
 			{
@@ -658,6 +611,75 @@ public class JokerClient : IDisposable
 		}
 
 		return response;
+	}
+
+	/// <summary>
+	/// Parses a single header line and updates the response object
+	/// </summary>
+	/// <param name="line">The header line to parse</param>
+	/// <param name="response">The response object to update</param>
+	private static void ParseHeaderLine(string line, DmapiResponse response)
+	{
+		var colonIndex = line.IndexOf(':');
+		if (colonIndex <= 0)
+		{
+			return;
+		}
+
+		var headerName = line[..colonIndex].Trim();
+		var headerValue = line[(colonIndex + 1)..].Trim();
+
+		response.Headers[headerName] = headerValue;
+
+		// Map known headers to properties
+		MapHeaderToProperty(headerName, headerValue, response);
+	}
+
+	/// <summary>
+	/// Maps known header names to response properties
+	/// </summary>
+	/// <param name="headerName">The header name</param>
+	/// <param name="headerValue">The header value</param>
+	/// <param name="response">The response object to update</param>
+	private static void MapHeaderToProperty(string headerName, string headerValue, DmapiResponse response)
+	{
+		switch (headerName.ToLowerInvariant())
+		{
+			case "auth-sid":
+				response.AuthSid = headerValue;
+				break;
+			case "uid":
+				response.Uid = headerValue;
+				break;
+			case "tracking-id":
+				response.TrackingId = headerValue;
+				break;
+			case "status-code":
+				_ = int.TryParse(headerValue, out var statusCode);
+				response.StatusCode = statusCode;
+				break;
+			case "status-text":
+				response.StatusText = headerValue;
+				break;
+			case "result":
+				response.Result = headerValue;
+				break;
+			case "proc-id":
+				response.ProcId = headerValue;
+				break;
+			case "account-balance":
+				response.AccountBalance = headerValue;
+				break;
+			case "error":
+				response.Errors.Add(headerValue);
+				break;
+			case "warning":
+				response.Warnings.Add(headerValue);
+				break;
+			default:
+				// Unknown header - already stored in Headers dictionary
+				break;
+		}
 	}
 
 	/// <summary>

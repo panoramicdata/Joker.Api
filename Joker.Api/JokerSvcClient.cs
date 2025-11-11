@@ -206,49 +206,69 @@ public class JokerSvcClient : IDisposable
 
 		foreach (var line in zoneData.Split('\n'))
 		{
-			var trimmedLine = line.Trim();
-			if (string.IsNullOrWhiteSpace(trimmedLine) || trimmedLine.StartsWith('#'))
+			var record = ParseZoneRecordLine(line);
+			if (record != null)
 			{
-				continue;
+				records.Add(record);
 			}
-
-			var parts = trimmedLine.Split(':', StringSplitOptions.RemoveEmptyEntries);
-			if (parts.Length < 3)
-			{
-				continue;
-			}
-
-			var record = new DnsRecord
-			{
-				Type = parts[0],
-				Label = parts[1],
-				Value = parts[^1] // Last part is always the value
-			};
-
-			// Parse optional fields based on record type
-			if (parts.Length > 3)
-			{
-				// For MX records: Type:Label:Priority:Value
-				if (record.Type.Equals("MX", StringComparison.OrdinalIgnoreCase) && int.TryParse(parts[2], out var priority))
-				{
-					record.Priority = priority;
-					if (parts.Length > 4 && int.TryParse(parts[4], out var ttl))
-					{
-						record.Ttl = ttl;
-					}
-				}
-				// For other records with TTL: Type:Label:Value:TTL
-				else if (int.TryParse(parts[^1], out var ttl))
-				{
-					record.Ttl = ttl;
-					record.Value = parts[^2];
-				}
-			}
-
-			records.Add(record);
 		}
 
 		return records;
+	}
+
+	/// <summary>
+	/// Parses a single zone record line
+	/// </summary>
+	private static DnsRecord? ParseZoneRecordLine(string line)
+	{
+		var trimmedLine = line.Trim();
+		if (string.IsNullOrWhiteSpace(trimmedLine) || trimmedLine.StartsWith('#'))
+		{
+			return null;
+		}
+
+		var parts = trimmedLine.Split(':', StringSplitOptions.RemoveEmptyEntries);
+		if (parts.Length < 3)
+		{
+			return null;
+		}
+
+		var record = new DnsRecord
+		{
+			Type = parts[0],
+			Label = parts[1],
+			Value = parts[^1] // Last part is always the value
+		};
+
+		// Parse optional fields based on record type
+		if (parts.Length > 3)
+		{
+			ParseOptionalFields(parts, record);
+		}
+
+		return record;
+	}
+
+	/// <summary>
+	/// Parses optional fields (priority, TTL) from record parts
+	/// </summary>
+	private static void ParseOptionalFields(string[] parts, DnsRecord record)
+	{
+		// For MX records: Type:Label:Priority:Value
+		if (record.Type.Equals("MX", StringComparison.OrdinalIgnoreCase) && int.TryParse(parts[2], out var priority))
+		{
+			record.Priority = priority;
+			if (parts.Length > 4 && int.TryParse(parts[4], out var ttl))
+			{
+				record.Ttl = ttl;
+			}
+		}
+		// For other records with TTL: Type:Label:Value:TTL
+		else if (int.TryParse(parts[^1], out var ttl))
+		{
+			record.Ttl = ttl;
+			record.Value = parts[^2];
+		}
 	}
 
 	/// <summary>
@@ -285,7 +305,7 @@ public class JokerSvcClient : IDisposable
 	}
 
 	/// <summary>
-	/// Parses the DMAPI text-based response format (copied from JokerClient)
+	/// Parses the DMAPI text-based response format
 	/// </summary>
 	private static DmapiResponse ParseDmapiResponse(string content)
 	{
@@ -306,52 +326,7 @@ public class JokerSvcClient : IDisposable
 
 			if (!bodyStarted)
 			{
-				var colonIndex = trimmedLine.IndexOf(':');
-				if (colonIndex > 0)
-				{
-					var headerName = trimmedLine[..colonIndex].Trim();
-					var headerValue = trimmedLine[(colonIndex + 1)..].Trim();
-
-					response.Headers[headerName] = headerValue;
-
-					switch (headerName.ToLowerInvariant())
-					{
-						case "auth-sid":
-							response.AuthSid = headerValue;
-							break;
-						case "uid":
-							response.Uid = headerValue;
-							break;
-						case "tracking-id":
-							response.TrackingId = headerValue;
-							break;
-						case "status-code":
-							_ = int.TryParse(headerValue, out var statusCode);
-							response.StatusCode = statusCode;
-							break;
-						case "status-text":
-							response.StatusText = headerValue;
-							break;
-						case "result":
-							response.Result = headerValue;
-							break;
-						case "proc-id":
-							response.ProcId = headerValue;
-							break;
-						case "account-balance":
-							response.AccountBalance = headerValue;
-							break;
-						case "error":
-							response.Errors.Add(headerValue);
-							break;
-						case "warning":
-							response.Warnings.Add(headerValue);
-							break;
-						default:
-							// Unknown header - already stored in Headers dictionary
-							break;
-					}
-				}
+				ParseHeaderLine(trimmedLine, response);
 			}
 			else
 			{
@@ -365,6 +340,70 @@ public class JokerSvcClient : IDisposable
 		}
 
 		return response;
+	}
+
+	/// <summary>
+	/// Parses a single header line and updates the response object
+	/// </summary>
+	private static void ParseHeaderLine(string line, DmapiResponse response)
+	{
+		var colonIndex = line.IndexOf(':');
+		if (colonIndex <= 0)
+		{
+			return;
+		}
+
+		var headerName = line[..colonIndex].Trim();
+		var headerValue = line[(colonIndex + 1)..].Trim();
+
+		response.Headers[headerName] = headerValue;
+
+		// Map known headers to properties
+		MapHeaderToProperty(headerName, headerValue, response);
+	}
+
+	/// <summary>
+	/// Maps known header names to response properties
+	/// </summary>
+	private static void MapHeaderToProperty(string headerName, string headerValue, DmapiResponse response)
+	{
+		switch (headerName.ToLowerInvariant())
+		{
+			case "auth-sid":
+				response.AuthSid = headerValue;
+				break;
+			case "uid":
+				response.Uid = headerValue;
+				break;
+			case "tracking-id":
+				response.TrackingId = headerValue;
+				break;
+			case "status-code":
+				_ = int.TryParse(headerValue, out var statusCode);
+				response.StatusCode = statusCode;
+				break;
+			case "status-text":
+				response.StatusText = headerValue;
+				break;
+			case "result":
+				response.Result = headerValue;
+				break;
+			case "proc-id":
+				response.ProcId = headerValue;
+				break;
+			case "account-balance":
+				response.AccountBalance = headerValue;
+				break;
+			case "error":
+				response.Errors.Add(headerValue);
+				break;
+			case "warning":
+				response.Warnings.Add(headerValue);
+				break;
+			default:
+				// Unknown header - already stored in Headers dictionary
+				break;
+		}
 	}
 
 	/// <summary>
