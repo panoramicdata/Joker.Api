@@ -1,12 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net9.0</TargetFramework>
+		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<IsPackable>false</IsPackable>
-		<OutputType>Exe</OutputType>
-		<UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+		<IsTestProject>true</IsTestProject>
 		<UserSecretsId>joker-api-test-secrets</UserSecretsId>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -26,14 +25,13 @@
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		  <PrivateAssets>all</PrivateAssets>
 		</PackageReference>
-		<PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.10" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="9.0.10" />
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
-		<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.10" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.10" />
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.0" />
-		<PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.1.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
 		<PackageReference Include="xunit.v3" Version="3.2.0" />
 		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
 		  <PrivateAssets>all</PrivateAssets>
