@@ -1,0 +1,27 @@
+---
+engines:
+  sonarcs:
+    exclude_patterns:
+      - 'Joker.Api.Test/**'  # Don't report test code issues
+  lizard:
+    exclude_patterns:
+      - 'Joker.Api.Test/**'  # Don't check test complexity
+    configuration:
+      languages:
+        - csharp
+      exclude_methods:
+        # Exclude simple switch statement methods from complexity checks
+        - MapHeaderToProperty
+  pslint:
+    exclude_paths:
+      - 'Publish.ps1'  # Allow Write-Host in interactive publish script
+      - 'Test.ps1'     # Allow Write-Host in interactive test script
+
+exclude_paths:
+  - '.git/**'
+  - 'bin/**'
+  - 'obj/**'
+  - '**/*.dll'
+  - '**/*.exe'
+  - 'TestResults/**'
+  - 'codacy-coverage-reporter.jar'
