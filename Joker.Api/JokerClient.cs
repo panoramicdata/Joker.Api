@@ -103,7 +103,7 @@ public class JokerClient : IDisposable
 		bool showStatus = false,
 		bool showGrants = false,
 		bool showJokerNs = false,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken = default!)
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 		
@@ -153,7 +153,7 @@ public class JokerClient : IDisposable
 		string? pattern = null,
 		string? tld = null,
 		bool extendedFormat = false,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken = default!)
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 		
@@ -196,7 +196,7 @@ public class JokerClient : IDisposable
 	public async Task<DmapiResponse> QueryNameserverListAsync(
 		string? pattern = null,
 		bool includeIps = false,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken = default!)
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 		
@@ -259,7 +259,7 @@ public class JokerClient : IDisposable
 		bool pending = false,
 		bool showAll = false,
 		int? period = null,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken = default!)
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 		
@@ -302,7 +302,7 @@ public class JokerClient : IDisposable
 	public async Task<DmapiResponse> ResultRetrieveAsync(
 		string? procId = null,
 		string? svTrId = null,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken = default!)
 	{
 		if (string.IsNullOrWhiteSpace(procId) && string.IsNullOrWhiteSpace(svTrId))
 		{

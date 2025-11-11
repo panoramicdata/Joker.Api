@@ -236,14 +236,13 @@ function Test-Codacy {
     
     Write-Step "Checking Codacy for code quality issues..."
     
-    Write-InfoMessage "Note: Codacy project tokens can only upload coverage, not query issues."
-    Write-InfoMessage "To enable automated issue checking, you need an Account API Token."
-    Write-InfoMessage "Get it from: https://app.codacy.com/account/apiTokens"
-    Write-InfoMessage "Then add it to codacy-api-key.txt (different from project token)"
-    
     # Check if we have an API token (not project token)
     $apiKeyPath = Join-Path $PSScriptRoot 'codacy-api-key.txt'
     if (-not (Test-Path $apiKeyPath)) {
+        Write-InfoMessage "Note: Codacy project tokens can only upload coverage, not query issues."
+        Write-InfoMessage "To enable automated issue checking, you need an Account API Token."
+        Write-InfoMessage "Get it from: https://app.codacy.com/account/apiTokens"
+        Write-InfoMessage "Then add it to codacy-api-key.txt (different from project token)"
         Write-InfoMessage "Skipping Codacy issue check - no API token found"
         Write-InfoMessage "Coverage has been uploaded, but we cannot verify issue count"
         return $true  # Don't fail if API key not provided
@@ -251,6 +250,9 @@ function Test-Codacy {
     
     $apiToken = Get-Content $apiKeyPath -Raw | ForEach-Object { $_.Trim() }
     if ([string]::IsNullOrWhiteSpace($apiToken)) {
+        Write-InfoMessage "Note: Codacy project tokens can only upload coverage, not query issues."
+        Write-InfoMessage "To enable automated issue checking, you need an Account API Token."
+        Write-InfoMessage "Get it from: https://app.codacy.com/account/apiTokens"
         Write-InfoMessage "Skipping Codacy issue check - codacy-api-key.txt is empty"
         return $true
     }
