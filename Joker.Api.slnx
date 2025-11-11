@@ -1,0 +1,9 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Joker.Api.Test/Joker.Api.Test.csproj" />
+  <Project Path="Joker.Api/Joker.Api.csproj" />
+</Solution>
