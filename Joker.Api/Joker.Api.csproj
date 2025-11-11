@@ -9,6 +9,7 @@
 		<WarningsAsErrors />
 		<WarningsNotAsErrors>VSSpell001</WarningsNotAsErrors>
 		<AnalysisLevel>latest-recommended</AnalysisLevel>
+		<SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<PackageId>Joker.Api</PackageId>
 		<Authors>Panoramic Data Limited</Authors>

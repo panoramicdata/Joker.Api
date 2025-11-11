@@ -135,9 +135,9 @@ function Invoke-Build {
         $_ -match ':\s+error\s+[A-Z]+\d+:' 
     }
     
-    # Check for compiler messages but exclude NETSDK1057 (preview .NET informational message)
+    # Check for compiler messages
     $messageLines = $buildOutput | Where-Object { 
-        $_ -match ':\s+message\s+[A-Z]+\d+:' -and $_ -notmatch 'NETSDK1057'
+        $_ -match ':\s+message\s+[A-Z]+\d+:'
     }
     
     if ($errorLines) {
