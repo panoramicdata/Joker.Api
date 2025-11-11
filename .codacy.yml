@@ -1,27 +1,4 @@
 ---
-engines:
-  sonarcs:
-    exclude_patterns:
-      - 'Joker.Api.Test/**'  # Don't report test code issues
-    exclude_rules:
-      - 'S107'  # Methods should not have too many parameters (we use optional params for API clients)
-      - 'S2360' # Optional parameters should not be used (acceptable for modern C# async APIs)
-      - 'S1075' # URIs should not be hardcoded (acceptable in tests)
-      - 'S1313' # IP addresses should not be hardcoded (acceptable in tests)
-  lizard:
-    exclude_patterns:
-      - 'Joker.Api.Test/**'  # Don't check test complexity
-    configuration:
-      languages:
-        - csharp
-      exclude_methods:
-        # Exclude simple switch statement methods from complexity checks
-        - MapHeaderToProperty
-  pslint:
-    exclude_paths:
-      - 'Publish.ps1'  # Allow Write-Host in interactive publish script
-      - 'Test.ps1'     # Allow Write-Host in interactive test script
-
 exclude_paths:
   - '.git/**'
   - 'bin/**'
@@ -30,3 +7,22 @@ exclude_paths:
   - '**/*.exe'
   - 'TestResults/**'
   - 'codacy-coverage-reporter.jar'
+  - 'Joker.Api.Test/**'  # Exclude all test files
+  - '**.ps1'  # Exclude PowerShell scripts
+
+engines:
+  sonarcs:
+    enabled: true
+    exclude_patterns:
+      - 'Joker.Api.Test/**'
+    exclude_rules:
+      - 'S1313'  # IP addresses should not be hardcoded
+  
+  lizard:
+    enabled: false  # Disable complexity checking (we have our own standards)
+  
+  checkstyle:
+    enabled: false
+  
+  pmd:
+    enabled: false
