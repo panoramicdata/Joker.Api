@@ -63,7 +63,7 @@ public class DmapiResponse
 	/// <summary>
 	/// Gets all headers as a dictionary
 	/// </summary>
-	public Dictionary<string, string> Headers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+	public Dictionary<string, string> Headers { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
 	/// <summary>
 	/// Indicates if the request was successful
