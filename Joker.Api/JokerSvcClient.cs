@@ -101,7 +101,7 @@ public class JokerSvcClient : IDisposable
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 
-		var recordList = records as ICollection<DnsRecord> ?? records.ToList();
+		var recordList = records as ICollection<DnsRecord> ?? [.. records];
 		var zoneData = string.Join("\n", recordList.Select(r => r.ToZoneFormat()));
 
 		var parameters = new Dictionary<string, string>

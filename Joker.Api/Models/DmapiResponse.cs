@@ -70,7 +70,7 @@ public class DmapiResponse
 	/// </summary>
 	public bool IsSuccess => StatusCode == 0 && Result?.Equals("ACK", StringComparison.OrdinalIgnoreCase) == true;
 
-	private static readonly Dictionary<string, Action<DmapiResponse, string>> HeaderMappers = new(StringComparer.OrdinalIgnoreCase)
+	private static readonly Dictionary<string, Action<DmapiResponse, string>> _headerMappers = new(StringComparer.OrdinalIgnoreCase)
 	{
 		["auth-sid"] = (r, v) => r.AuthSid = v,
 		["uid"] = (r, v) => r.Uid = v,
@@ -91,7 +91,7 @@ public class DmapiResponse
 	/// <param name="headerValue">The header value</param>
 	internal void MapHeader(string headerName, string headerValue)
 	{
-		if (HeaderMappers.TryGetValue(headerName, out var mapper))
+		if (_headerMappers.TryGetValue(headerName, out var mapper))
 		{
 			mapper(this, headerValue);
 		}
