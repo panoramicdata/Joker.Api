@@ -69,4 +69,31 @@ public class DmapiResponse
 	/// Indicates if the request was successful
 	/// </summary>
 	public bool IsSuccess => StatusCode == 0 && Result?.Equals("ACK", StringComparison.OrdinalIgnoreCase) == true;
+
+	private static readonly Dictionary<string, Action<DmapiResponse, string>> HeaderMappers = new(StringComparer.OrdinalIgnoreCase)
+	{
+		["auth-sid"] = (r, v) => r.AuthSid = v,
+		["uid"] = (r, v) => r.Uid = v,
+		["tracking-id"] = (r, v) => r.TrackingId = v,
+		["status-code"] = (r, v) => { _ = int.TryParse(v, out var sc); r.StatusCode = sc; },
+		["status-text"] = (r, v) => r.StatusText = v,
+		["result"] = (r, v) => r.Result = v,
+		["proc-id"] = (r, v) => r.ProcId = v,
+		["account-balance"] = (r, v) => r.AccountBalance = v,
+		["error"] = (r, v) => r.Errors.Add(v),
+		["warning"] = (r, v) => r.Warnings.Add(v),
+	};
+
+	/// <summary>
+	/// Maps a known header name to the corresponding response property
+	/// </summary>
+	/// <param name="headerName">The header name</param>
+	/// <param name="headerValue">The header value</param>
+	internal void MapHeader(string headerName, string headerValue)
+	{
+		if (HeaderMappers.TryGetValue(headerName, out var mapper))
+		{
+			mapper(this, headerValue);
+		}
+	}
 }

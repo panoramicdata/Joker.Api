@@ -506,8 +506,8 @@ public class JokerClient : IDisposable
 		// If not authenticated yet and using username/password, login now
 		if (string.IsNullOrWhiteSpace(_authSid))
 		{
-			await LoginAsync(cancellationToken).ConfigureAwait(false);
-			
+			_ = await LoginAsync(cancellationToken).ConfigureAwait(false);
+
 			if (string.IsNullOrWhiteSpace(_authSid))
 			{
 				throw new InvalidOperationException("Authentication failed. No auth-sid received.");
@@ -557,7 +557,7 @@ public class JokerClient : IDisposable
 
 		if (_options.EnableRequestLogging)
 		{
-			_options.Logger?.LogDebug("DMAPI Request: {Method} {Url}", "GET", url);
+			_options.Logger?.LogDmapiRequest("GET", url);
 		}
 
 		var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
@@ -565,7 +565,7 @@ public class JokerClient : IDisposable
 
 		if (_options.EnableResponseLogging)
 		{
-			_options.Logger?.LogDebug("DMAPI Response: {Content}", content);
+			_options.Logger?.LogDmapiResponse(content);
 		}
 
 		return ParseDmapiResponse(content);
@@ -632,54 +632,7 @@ public class JokerClient : IDisposable
 		response.Headers[headerName] = headerValue;
 
 		// Map known headers to properties
-		MapHeaderToProperty(headerName, headerValue, response);
-	}
-
-	/// <summary>
-	/// Maps known header names to response properties
-	/// </summary>
-	/// <param name="headerName">The header name</param>
-	/// <param name="headerValue">The header value</param>
-	/// <param name="response">The response object to update</param>
-	private static void MapHeaderToProperty(string headerName, string headerValue, DmapiResponse response)
-	{
-		switch (headerName.ToLowerInvariant())
-		{
-			case "auth-sid":
-				response.AuthSid = headerValue;
-				break;
-			case "uid":
-				response.Uid = headerValue;
-				break;
-			case "tracking-id":
-				response.TrackingId = headerValue;
-				break;
-			case "status-code":
-				_ = int.TryParse(headerValue, out var statusCode);
-				response.StatusCode = statusCode;
-				break;
-			case "status-text":
-				response.StatusText = headerValue;
-				break;
-			case "result":
-				response.Result = headerValue;
-				break;
-			case "proc-id":
-				response.ProcId = headerValue;
-				break;
-			case "account-balance":
-				response.AccountBalance = headerValue;
-				break;
-			case "error":
-				response.Errors.Add(headerValue);
-				break;
-			case "warning":
-				response.Warnings.Add(headerValue);
-				break;
-			default:
-				// Unknown header - already stored in Headers dictionary
-				break;
-		}
+		response.MapHeader(headerName, headerValue);
 	}
 
 	/// <summary>

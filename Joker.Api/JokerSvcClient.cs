@@ -62,10 +62,7 @@ public class JokerSvcClient : IDisposable
 
 			_authSid = loginResponse.AuthSid;
 			
-			if (_options.Logger != null)
-			{
-				_options.Logger.LogInformation("SVC authenticated successfully for domain {Domain}", _options.Domain);
-			}
+			_options.Logger?.LogSvcAuthenticated(_options.Domain);
 		}
 	}
 
@@ -86,9 +83,9 @@ public class JokerSvcClient : IDisposable
 
 		var response = await SendDmapiRequestAsync("dns-zone-get", parameters, cancellationToken).ConfigureAwait(false);
 
-		if (_options.Logger != null && response.IsSuccess)
+		if (response.IsSuccess)
 		{
-			_options.Logger.LogInformation("Retrieved DNS zone for {Domain}", _options.Domain);
+			_options.Logger?.LogDnsZoneRetrieved(_options.Domain);
 		}
 
 		return response;
@@ -104,7 +101,8 @@ public class JokerSvcClient : IDisposable
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 
-		var zoneData = string.Join("\n", records.Select(r => r.ToZoneFormat()));
+		var recordList = records as ICollection<DnsRecord> ?? records.ToList();
+		var zoneData = string.Join("\n", recordList.Select(r => r.ToZoneFormat()));
 
 		var parameters = new Dictionary<string, string>
 		{
@@ -115,10 +113,9 @@ public class JokerSvcClient : IDisposable
 
 		var response = await SendDmapiRequestAsync("dns-zone-put", parameters, cancellationToken).ConfigureAwait(false);
 
-		if (_options.Logger != null && response.IsSuccess)
+		if (response.IsSuccess)
 		{
-			_options.Logger.LogInformation("Updated DNS zone for {Domain} with {Count} records", 
-				_options.Domain, records.Count());
+			_options.Logger?.LogDnsZoneUpdated(_options.Domain, recordList.Count);
 		}
 
 		return response;
@@ -290,7 +287,7 @@ public class JokerSvcClient : IDisposable
 
 		if (_options.EnableRequestLogging)
 		{
-			_options.Logger?.LogDebug("SVC DMAPI Request: {Method} {Url}", "GET", url);
+			_options.Logger?.LogSvcDmapiRequest("GET", url);
 		}
 
 		var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
@@ -298,7 +295,7 @@ public class JokerSvcClient : IDisposable
 
 		if (_options.EnableResponseLogging)
 		{
-			_options.Logger?.LogDebug("SVC DMAPI Response: {Content}", content);
+			_options.Logger?.LogSvcDmapiResponse(content);
 		}
 
 		return ParseDmapiResponse(content);
@@ -359,51 +356,7 @@ public class JokerSvcClient : IDisposable
 		response.Headers[headerName] = headerValue;
 
 		// Map known headers to properties
-		MapHeaderToProperty(headerName, headerValue, response);
-	}
-
-	/// <summary>
-	/// Maps known header names to response properties
-	/// </summary>
-	private static void MapHeaderToProperty(string headerName, string headerValue, DmapiResponse response)
-	{
-		switch (headerName.ToLowerInvariant())
-		{
-			case "auth-sid":
-				response.AuthSid = headerValue;
-				break;
-			case "uid":
-				response.Uid = headerValue;
-				break;
-			case "tracking-id":
-				response.TrackingId = headerValue;
-				break;
-			case "status-code":
-				_ = int.TryParse(headerValue, out var statusCode);
-				response.StatusCode = statusCode;
-				break;
-			case "status-text":
-				response.StatusText = headerValue;
-				break;
-			case "result":
-				response.Result = headerValue;
-				break;
-			case "proc-id":
-				response.ProcId = headerValue;
-				break;
-			case "account-balance":
-				response.AccountBalance = headerValue;
-				break;
-			case "error":
-				response.Errors.Add(headerValue);
-				break;
-			case "warning":
-				response.Warnings.Add(headerValue);
-				break;
-			default:
-				// Unknown header - already stored in Headers dictionary
-				break;
-		}
+		response.MapHeader(headerName, headerValue);
 	}
 
 	/// <summary>
