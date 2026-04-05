@@ -1,17 +1,16 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Builds, tests, and publishes the Joker.Api NuGet package with comprehensive quality checks.
+    Tags and pushes a release version for Joker.Api, triggering CI-based NuGet publishing.
 
 .DESCRIPTION
     This script performs the following steps:
-    1. Builds the solution with no warnings, errors, or messages
-    2. Runs all unit tests
-    3. Collects code coverage data
-    4. Checks Codacy for code quality issues
-    5. Only publishes to NuGet if all checks pass perfectly
-
-    The NuGet API key must be stored in a git-ignored file: nuget-key.txt
+    1. Checks that the working tree is clean
+    2. Checks that the current branch is main
+    3. Fetches latest from origin
+    4. Gets the version from nbgv
+    5. Checks that the tag does not already exist
+    6. Creates and pushes the version tag to trigger CI publishing
 
 .EXAMPLE
     .\Publish.ps1
@@ -64,194 +63,82 @@ function Write-InfoMessage {
     Write-ColorOutput "  ℹ $Message" -Color $script:Colors.Info
 }
 
-function Test-Prerequisites {
-    Write-Step "Checking prerequisites..."
-    
-    # Check if nuget-key.txt exists
-    $nugetKeyPath = Join-Path $PSScriptRoot 'nuget-key.txt'
-    if (-not (Test-Path $nugetKeyPath)) {
-        Write-Failure "nuget-key.txt not found in repository root"
-        Write-InfoMessage "Create a file named 'nuget-key.txt' containing your NuGet API key"
-        Write-InfoMessage "This file is git-ignored for security"
-        return $false
-    }
-    
-    $script:NuGetApiKey = Get-Content $nugetKeyPath -Raw | ForEach-Object { $_.Trim() }
-    if ([string]::IsNullOrWhiteSpace($script:NuGetApiKey)) {
-        Write-Failure "nuget-key.txt is empty"
-        return $false
-    }
-    
-    Write-Success "NuGet API key found"
-    
-    # Check if codacy-key.txt exists
-    $codacyKeyPath = Join-Path $PSScriptRoot 'codacy-key.txt'
-    if (-not (Test-Path $codacyKeyPath)) {
-        Write-Failure "codacy-key.txt not found in repository root"
-        Write-InfoMessage "Create a file named 'codacy-key.txt' containing your Codacy project token"
-        Write-InfoMessage "Get it from: https://app.codacy.com/project/settings"
-        Write-InfoMessage "This file is git-ignored for security"
-        return $false
-    }
-    
-    $script:CodacyProjectToken = Get-Content $codacyKeyPath -Raw | ForEach-Object { $_.Trim() }
-    if ([string]::IsNullOrWhiteSpace($script:CodacyProjectToken)) {
-        Write-Failure "codacy-key.txt is empty"
-        return $false
-    }
-    
-    Write-Success "Codacy project token found"
-    
-    # Check if dotnet is available
-    try {
-        $dotnetVersion = dotnet --version
-        Write-Success "dotnet CLI available (version $dotnetVersion)"
-    }
-    catch {
-        Write-Failure "dotnet CLI not found"
-        return $false
-    }
-    
-    return $true
-}
-
-function Invoke-Build {
-    Write-Step "Building solution with strict quality checks..."
-    
-    $buildOutput = dotnet build --configuration Release /p:TreatWarningsAsErrors=true 2>&1
-    
-    if ($LASTEXITCODE -ne 0) {
-        Write-Failure "Build failed"
-        $buildOutput | Write-Host
-        return $false
-    }
-    
-    # Check for actual warnings (not just the word "warning" in summary)
-    $warningLines = $buildOutput | Where-Object { 
-        $_ -match ':\s+warning\s+[A-Z]+\d+:' 
-    }
-    
-    $errorLines = $buildOutput | Where-Object { 
-        $_ -match ':\s+error\s+[A-Z]+\d+:' 
-    }
-    
-    # Check for compiler messages
-    $messageLines = $buildOutput | Where-Object { 
-        $_ -match ':\s+message\s+[A-Z]+\d+:'
-    }
-    
-    if ($errorLines) {
-        Write-Failure "Build has errors"
-        $errorLines | Write-Host
-        return $false
-    }
-    
-    if ($warningLines) {
-        Write-Failure "Build has warnings"
-        $warningLines | Write-Host
-        return $false
-    }
-    
-    if ($messageLines) {
-        Write-Failure "Build has compiler messages"
-        $messageLines | Write-Host
-        return $false
-    }
-    
-    Write-Success "Build completed with zero warnings, errors, and messages"
-    return $true
-}
-
-function Publish-Package {
-    Write-Step "Publishing to NuGet..."
-    
-    # Find the .nupkg file
-    $packagePath = Get-ChildItem -Path (Join-Path $PSScriptRoot 'Joker.Api\bin\Release') -Filter '*.nupkg' -Recurse | 
-                   Sort-Object LastWriteTime -Descending | 
-                   Select-Object -First 1
-    
-    if (-not $packagePath) {
-        Write-Failure "No .nupkg file found in Release output"
-        return $false
-    }
-    
-    Write-InfoMessage "Package: $($packagePath.Name)"
-    
-    # Publish to NuGet
-    try {
-        $publishOutput = dotnet nuget push $packagePath.FullName --api-key $script:NuGetApiKey --source https://api.nuget.org/v3/index.json 2>&1
-        
-        if ($LASTEXITCODE -ne 0) {
-            # Check if it's a duplicate version error
-            if ($publishOutput -match 'already exists and cannot be modified') {
-                Write-Failure "Package version already exists on NuGet"
-                Write-InfoMessage "Increment the version number in Joker.Api.csproj before publishing"
-                return $false
-            }
-            
-            Write-Failure "NuGet publish failed"
-            $publishOutput | Write-Host
-            return $false
-        }
-        
-        Write-Success "Package published to NuGet successfully!"
-        Write-InfoMessage "View at: https://www.nuget.org/packages/Joker.Api"
-        return $true
-    }
-    catch {
-        Write-Failure "NuGet publish failed with exception: $_"
-        return $false
-    }
-}
-
 # Main execution
 Write-ColorOutput "`n╔══════════════════════════════════════════════════════════╗" -Color $script:Colors.Step
 Write-ColorOutput "║         Joker.Api NuGet Package Publisher              ║" -Color $script:Colors.Step
 Write-ColorOutput "╚══════════════════════════════════════════════════════════╝" -Color $script:Colors.Step
 
 try {
-    # Step 1: Prerequisites
-    if (-not (Test-Prerequisites)) {
-        Write-ColorOutput "`n❌ Prerequisites check failed. Aborting publish.`n" -Color $script:Colors.Error
+    # Step 1: Check working tree is clean
+    Write-Step "Checking working tree is clean..."
+    $status = git status --porcelain
+    if ($status) {
+        Write-Failure "Working tree is not clean. Commit or stash changes before publishing."
+        $status | ForEach-Object { Write-InfoMessage $_ }
         exit 1
     }
-    
-    # Step 2: Build
-    if (-not (Invoke-Build)) {
-        Write-ColorOutput "`n❌ Build failed. Aborting publish.`n" -Color $script:Colors.Error
+    Write-Success "Working tree is clean"
+
+    # Step 2: Check current branch is main
+    Write-Step "Checking current branch..."
+    $branch = git rev-parse --abbrev-ref HEAD
+    if ($branch -ne 'main') {
+        Write-Failure "Current branch is '$branch'. Switch to 'main' before publishing."
         exit 1
     }
-    
-    # Step 3-5: Run tests, coverage, and Codacy checks via Test.ps1
-    Write-Step "Running Test.ps1 for tests, coverage, and quality checks..."
-    
-    $testScriptPath = Join-Path $PSScriptRoot 'Test.ps1'
-    if (-not (Test-Path $testScriptPath)) {
-        Write-Failure "Test.ps1 not found"
-        exit 1
-    }
-    
-    # Run Test.ps1 with the Codacy token
-    & $testScriptPath -Configuration Release -CodacyToken $script:CodacyProjectToken
-    
+    Write-Success "On branch main"
+
+    # Step 3: Fetch latest from origin
+    Write-Step "Fetching latest from origin..."
+    git fetch origin main --quiet
     if ($LASTEXITCODE -ne 0) {
-        Write-ColorOutput "`n❌ Tests or quality checks failed. Aborting publish.`n" -Color $script:Colors.Error
+        Write-Failure "Failed to fetch from origin"
         exit 1
     }
-    
-    Write-Success "All tests and quality checks passed!"
-    
-    # Step 6: Publish
-    if (-not (Publish-Package)) {
-        Write-ColorOutput "`n❌ Publishing failed.`n" -Color $script:Colors.Error
+    Write-Success "Fetched latest from origin"
+
+    # Step 4: Get version from nbgv
+    Write-Step "Getting version from nbgv..."
+    $versionJson = nbgv get-version -f json | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0) {
+        Write-Failure "Failed to get version from nbgv"
         exit 1
     }
-    
+    $version = $versionJson.SimpleVersion
+    Write-Success "Version: $version"
+
+    # Step 5: Check tag does not already exist
+    Write-Step "Checking if tag already exists..."
+    $existingTag = git tag -l $version
+    if ($existingTag) {
+        Write-Failure "Tag '$version' already exists. Version has already been published."
+        exit 1
+    }
+    Write-Success "Tag '$version' does not exist"
+
+    # Step 6: Create and push tag
+    Write-Step "Creating tag '$version'..."
+    git tag $version
+    if ($LASTEXITCODE -ne 0) {
+        Write-Failure "Failed to create tag"
+        exit 1
+    }
+    Write-Success "Tag created"
+
+    Write-Step "Pushing tag '$version' to origin..."
+    git push origin $version
+    if ($LASTEXITCODE -ne 0) {
+        Write-Failure "Failed to push tag"
+        exit 1
+    }
+    Write-Success "Tag pushed to origin"
+
     # Success!
     Write-ColorOutput "`n╔══════════════════════════════════════════════════════════╗" -Color $script:Colors.Success
-    Write-ColorOutput "║              ✓ PUBLISH SUCCESSFUL!                      ║" -Color $script:Colors.Success
+    Write-ColorOutput "║              ✓ TAG PUSHED SUCCESSFULLY!                 ║" -Color $script:Colors.Success
+    Write-ColorOutput "║     CI will now build and publish to NuGet.             ║" -Color $script:Colors.Success
     Write-ColorOutput "╚══════════════════════════════════════════════════════════╝`n" -Color $script:Colors.Success
-    
+
     exit 0
 }
 catch {
