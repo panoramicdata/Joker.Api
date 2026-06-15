@@ -97,14 +97,15 @@ try {
     }
     Write-Success "Fetched latest from origin"
 
-    # Step 4: Get version from nbgv
-    Write-Step "Getting version from nbgv..."
-    $versionJson = nbgv get-version -f json | ConvertFrom-Json
+    # Step 4: Get version from Nerdbank.GitVersioning via MSBuild (no nbgv CLI dependency)
+    Write-Step "Getting version from Nerdbank.GitVersioning..."
+    $project = Join-Path $PSScriptRoot 'Joker.Api/Joker.Api.csproj'
+    $buildOutput = dotnet build $project -t:GetBuildVersion --getProperty:NuGetPackageVersion -nologo -v:quiet -p:TreatWarningsAsErrors=false
     if ($LASTEXITCODE -ne 0) {
-        Write-Failure "Failed to get version from nbgv"
+        Write-Failure "Failed to determine version from Nerdbank.GitVersioning"
         exit 1
     }
-    $version = $versionJson.SimpleVersion
+    $version = ($buildOutput | Select-Object -Last 1).ToString().Trim()
     Write-Success "Version: $version"
 
     # Step 5: Check tag does not already exist
