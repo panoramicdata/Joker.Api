@@ -4,5 +4,6 @@
   "longRunningTestSeconds": 10,
   "shadowCopy": false,
   "parallelizeAssembly": false,
-  "parallelizeTestCollections": false
+  "parallelizeTestCollections": false,
+  "failSkips": true
 }
