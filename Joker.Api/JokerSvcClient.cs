@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Joker.Api.Models;
 
 namespace Joker.Api;
@@ -134,30 +134,7 @@ public class JokerSvcClient : IDisposable
 		string value, 
 		int? ttl,
 		CancellationToken cancellationToken)
-	{
-		// Get existing zone
-		var currentZone = await GetDnsZoneAsync(cancellationToken).ConfigureAwait(false);
-		
-		if (!currentZone.IsSuccess)
-		{
-			throw new InvalidOperationException(
-				$"Failed to retrieve current DNS zone: {currentZone.StatusText}");
-		}
-
-		// Parse existing records and add/update the TXT record
-		var existingRecords = ParseZoneRecords(currentZone.Body ?? string.Empty);
-		
-		// Remove any existing record with the same label and type
-		var updatedRecords = existingRecords
-			.Where(r => !(r.Type.Equals("TXT", StringComparison.OrdinalIgnoreCase) && 
-			             r.Label.Equals(label, StringComparison.OrdinalIgnoreCase)))
-			.ToList();
-
-		// Add the new TXT record
-		updatedRecords.Add(DnsRecord.CreateTxtRecord(label, value, ttl));
-
-		return await SetDnsZoneAsync(updatedRecords, cancellationToken).ConfigureAwait(false);
-	}
+		=> await ReplaceTxtRecordAsync(label, DnsRecord.CreateTxtRecord(label, value, ttl), cancellationToken).ConfigureAwait(false);
 
 	/// <summary>
 	/// Deletes a TXT record
@@ -168,23 +145,39 @@ public class JokerSvcClient : IDisposable
 	public async Task<DmapiResponse> DeleteTxtRecordAsync(
 		string label,
 		CancellationToken cancellationToken)
+		=> await ReplaceTxtRecordAsync(label, null, cancellationToken).ConfigureAwait(false);
+
+	/// <summary>
+	/// Rewrites the zone with every TXT record for <paramref name="label"/> removed, optionally
+	/// putting <paramref name="replacement"/> in their place
+	/// </summary>
+	/// <param name="label">The subdomain label whose TXT records are replaced</param>
+	/// <param name="replacement">The record to add, or null to only remove</param>
+	/// <param name="cancellationToken">Cancellation token</param>
+	/// <returns>The response from the DNS update</returns>
+	private async Task<DmapiResponse> ReplaceTxtRecordAsync(
+		string label,
+		DnsRecord? replacement,
+		CancellationToken cancellationToken)
 	{
-		// Get existing zone
 		var currentZone = await GetDnsZoneAsync(cancellationToken).ConfigureAwait(false);
-		
+
 		if (!currentZone.IsSuccess)
 		{
 			throw new InvalidOperationException(
 				$"Failed to retrieve current DNS zone: {currentZone.StatusText}");
 		}
 
-		// Parse existing records and remove the TXT record
-		var existingRecords = ParseZoneRecords(currentZone.Body ?? string.Empty);
-		
-		var updatedRecords = existingRecords
-			.Where(r => !(r.Type.Equals("TXT", StringComparison.OrdinalIgnoreCase) && 
+		// Keep every record except the TXT records carrying this label
+		var updatedRecords = ParseZoneRecords(currentZone.Body ?? string.Empty)
+			.Where(r => !(r.Type.Equals("TXT", StringComparison.OrdinalIgnoreCase) &&
 			             r.Label.Equals(label, StringComparison.OrdinalIgnoreCase)))
 			.ToList();
+
+		if (replacement != null)
+		{
+			updatedRecords.Add(replacement);
+		}
 
 		return await SetDnsZoneAsync(updatedRecords, cancellationToken).ConfigureAwait(false);
 	}
@@ -276,14 +269,7 @@ public class JokerSvcClient : IDisposable
 		Dictionary<string, string> parameters,
 		CancellationToken cancellationToken)
 	{
-		var queryParams = new List<string>();
-		
-		foreach (var param in parameters)
-		{
-			queryParams.Add($"{Uri.EscapeDataString(param.Key)}={Uri.EscapeDataString(param.Value)}");
-		}
-
-		var url = $"/request/{requestName}?{string.Join("&", queryParams)}";
+		var url = DmapiRequestUrlBuilder.Build(requestName, parameters);
 
 		if (_options.EnableRequestLogging)
 		{
@@ -298,65 +284,7 @@ public class JokerSvcClient : IDisposable
 			_options.Logger?.LogSvcDmapiResponse(content);
 		}
 
-		return ParseDmapiResponse(content);
-	}
-
-	/// <summary>
-	/// Parses the DMAPI text-based response format
-	/// </summary>
-	private static DmapiResponse ParseDmapiResponse(string content)
-	{
-		var response = new DmapiResponse();
-		var lines = content.Split('\n');
-		var bodyStarted = false;
-		var bodyLines = new List<string>();
-
-		foreach (var line in lines)
-		{
-			var trimmedLine = line.TrimEnd('\r');
-
-			if (string.IsNullOrWhiteSpace(trimmedLine))
-			{
-				bodyStarted = true;
-				continue;
-			}
-
-			if (!bodyStarted)
-			{
-				ParseHeaderLine(trimmedLine, response);
-			}
-			else
-			{
-				bodyLines.Add(trimmedLine);
-			}
-		}
-
-		if (bodyLines.Count > 0)
-		{
-			response.Body = string.Join("\n", bodyLines);
-		}
-
-		return response;
-	}
-
-	/// <summary>
-	/// Parses a single header line and updates the response object
-	/// </summary>
-	private static void ParseHeaderLine(string line, DmapiResponse response)
-	{
-		var colonIndex = line.IndexOf(':');
-		if (colonIndex <= 0)
-		{
-			return;
-		}
-
-		var headerName = line[..colonIndex].Trim();
-		var headerValue = line[(colonIndex + 1)..].Trim();
-
-		response.Headers[headerName] = headerValue;
-
-		// Map known headers to properties
-		response.MapHeader(headerName, headerValue);
+		return DmapiResponseParser.Parse(content);
 	}
 
 	/// <summary>
