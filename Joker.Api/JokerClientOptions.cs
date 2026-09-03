@@ -1,9 +1,9 @@
-namespace Joker.Api;
+﻿namespace Joker.Api;
 
 /// <summary>
 /// Configuration options for the Joker API client
 /// </summary>
-public class JokerClientOptions
+public class JokerClientOptions : IDmapiTransportOptions
 {
 	/// <summary>
 	/// Gets the Joker.com username (required if ApiKey is not provided)

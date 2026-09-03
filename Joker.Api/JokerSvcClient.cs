@@ -7,12 +7,11 @@ namespace Joker.Api;
 /// Client for Joker SVC (Service/Dynamic DNS) operations
 /// Allows DNS management without a reseller account using Dynamic DNS credentials
 /// </summary>
-public class JokerSvcClient : IDisposable
+public class JokerSvcClient : JokerClientBase
 {
-	private readonly HttpClient _httpClient;
+	private readonly DmapiTransport _transport;
 	private readonly JokerSvcClientOptions _options;
 	private readonly JokerClient _dmapiClient;
-	private bool _disposed;
 	private string? _authSid;
 
 	/// <summary>
@@ -24,13 +23,11 @@ public class JokerSvcClient : IDisposable
 		ArgumentNullException.ThrowIfNull(options);
 
 		_options = options;
-		_httpClient = new HttpClient
-		{
-			BaseAddress = new Uri(options.BaseUrl),
-			Timeout = options.RequestTimeout
-		};
-
-		_httpClient.DefaultRequestHeaders.Add("User-Agent", "Joker.Api .NET SVC Client");
+		_transport = new DmapiTransport(
+			options,
+			"Joker.Api .NET SVC Client",
+			static (logger, method, url) => logger.LogSvcDmapiRequest(method, url),
+			static (logger, content) => logger.LogSvcDmapiResponse(content));
 
 		// Create a DMAPI client for authentication
 		_dmapiClient = new JokerClient(new JokerClientOptions
@@ -52,7 +49,7 @@ public class JokerSvcClient : IDisposable
 		if (string.IsNullOrWhiteSpace(_authSid))
 		{
 			var loginResponse = await _dmapiClient.LoginAsync(cancellationToken).ConfigureAwait(false);
-			
+
 			if (!loginResponse.IsSuccess)
 			{
 				throw new InvalidOperationException(
@@ -61,7 +58,7 @@ public class JokerSvcClient : IDisposable
 			}
 
 			_authSid = loginResponse.AuthSid;
-			
+
 			_options.Logger?.LogSvcAuthenticated(_options.Domain);
 		}
 	}
@@ -75,13 +72,9 @@ public class JokerSvcClient : IDisposable
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 
-		var parameters = new Dictionary<string, string>
-		{
-			["auth-sid"] = _authSid!,
-			["domain"] = _options.Domain
-		};
-
-		var response = await SendDmapiRequestAsync("dns-zone-get", parameters, cancellationToken).ConfigureAwait(false);
+		var response = await _transport
+			.SendAsync("dns-zone-get", CreateZoneParameters(), cancellationToken)
+			.ConfigureAwait(false);
 
 		if (response.IsSuccess)
 		{
@@ -102,16 +95,14 @@ public class JokerSvcClient : IDisposable
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 
 		var recordList = records as ICollection<DnsRecord> ?? [.. records];
-		var zoneData = string.Join("\n", recordList.Select(r => r.ToZoneFormat()));
 
-		var parameters = new Dictionary<string, string>
-		{
-			["auth-sid"] = _authSid!,
-			["domain"] = _options.Domain,
-			["zone"] = zoneData
-		};
+		// An empty zone is still sent, as that is how every record is removed
+		var parameters = CreateZoneParameters()
+			.Set("zone", string.Join("\n", recordList.Select(r => r.ToZoneFormat())));
 
-		var response = await SendDmapiRequestAsync("dns-zone-put", parameters, cancellationToken).ConfigureAwait(false);
+		var response = await _transport
+			.SendAsync("dns-zone-put", parameters, cancellationToken)
+			.ConfigureAwait(false);
 
 		if (response.IsSuccess)
 		{
@@ -130,8 +121,8 @@ public class JokerSvcClient : IDisposable
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>The response from the DNS update</returns>
 	public async Task<DmapiResponse> SetTxtRecordAsync(
-		string label, 
-		string value, 
+		string label,
+		string value,
 		int? ttl,
 		CancellationToken cancellationToken)
 		=> await ReplaceTxtRecordAsync(label, DnsRecord.CreateTxtRecord(label, value, ttl), cancellationToken).ConfigureAwait(false);
@@ -183,12 +174,20 @@ public class JokerSvcClient : IDisposable
 	}
 
 	/// <summary>
+	/// Creates the parameters identifying the authenticated session and the managed domain
+	/// </summary>
+	private DmapiParameters CreateZoneParameters()
+		=> new DmapiParameters()
+			.Set("auth-sid", _authSid!)
+			.Set("domain", _options.Domain);
+
+	/// <summary>
 	/// Parses zone data into DNS records
 	/// </summary>
 	private static List<DnsRecord> ParseZoneRecords(string zoneData)
 	{
 		var records = new List<DnsRecord>();
-		
+
 		if (string.IsNullOrWhiteSpace(zoneData))
 		{
 			return records;
@@ -262,55 +261,17 @@ public class JokerSvcClient : IDisposable
 	}
 
 	/// <summary>
-	/// Sends a request to the DMAPI
-	/// </summary>
-	private async Task<DmapiResponse> SendDmapiRequestAsync(
-		string requestName,
-		Dictionary<string, string> parameters,
-		CancellationToken cancellationToken)
-	{
-		var url = DmapiRequestUrlBuilder.Build(requestName, parameters);
-
-		if (_options.EnableRequestLogging)
-		{
-			_options.Logger?.LogSvcDmapiRequest("GET", url);
-		}
-
-		var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
-		var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-		if (_options.EnableResponseLogging)
-		{
-			_options.Logger?.LogSvcDmapiResponse(content);
-		}
-
-		return DmapiResponseParser.Parse(content);
-	}
-
-	/// <summary>
-	/// Disposes the client and releases resources
-	/// </summary>
-	public void Dispose()
-	{
-		Dispose(true);
-		GC.SuppressFinalize(this);
-	}
-
-	/// <summary>
-	/// Disposes the client and releases resources
+	/// Disposes the resources held by the client
 	/// </summary>
 	/// <param name="disposing">Whether to dispose managed resources</param>
-	protected virtual void Dispose(bool disposing)
+	protected override void Dispose(bool disposing)
 	{
-		if (!_disposed)
+		if (disposing)
 		{
-			if (disposing)
-			{
-				_httpClient?.Dispose();
-				_dmapiClient?.Dispose();
-			}
-
-			_disposed = true;
+			_transport.Dispose();
+			_dmapiClient.Dispose();
 		}
+
+		base.Dispose(disposing);
 	}
 }

@@ -6,11 +6,10 @@ namespace Joker.Api;
 /// <summary>
 /// Main client for interacting with the Joker DMAPI API
 /// </summary>
-public class JokerClient : IDisposable
+public class JokerClient : JokerClientBase
 {
-	private readonly HttpClient _httpClient;
+	private readonly DmapiTransport _transport;
 	private readonly JokerClientOptions _options;
-	private bool _disposed;
 	private string? _authSid;
 
 	/// <summary>
@@ -23,13 +22,11 @@ public class JokerClient : IDisposable
 		options.Validate();
 
 		_options = options;
-		_httpClient = new HttpClient
-		{
-			BaseAddress = new Uri(options.BaseUrl),
-			Timeout = options.RequestTimeout
-		};
-
-		_httpClient.DefaultRequestHeaders.Add("User-Agent", "Joker.Api .NET Client");
+		_transport = new DmapiTransport(
+			options,
+			"Joker.Api .NET Client",
+			static (logger, method, url) => logger.LogDmapiRequest(method, url),
+			static (logger, content) => logger.LogDmapiResponse(content));
 	}
 
 	/// <summary>
@@ -39,19 +36,20 @@ public class JokerClient : IDisposable
 	/// <returns>The authentication response with session ID</returns>
 	public async Task<DmapiResponse> LoginAsync(CancellationToken cancellationToken)
 	{
-		var parameters = new Dictionary<string, string>();
+		var parameters = new DmapiParameters();
 
 		if (!string.IsNullOrWhiteSpace(_options.ApiKey))
 		{
-			parameters["api-key"] = _options.ApiKey;
+			_ = parameters.Set("api-key", _options.ApiKey);
 		}
 		else
 		{
-			parameters["username"] = _options.Username!;
-			parameters["password"] = _options.Password!;
+			_ = parameters
+				.Set("username", _options.Username!)
+				.Set("password", _options.Password!);
 		}
 
-		var response = await SendRequestAsync("login", parameters, cancellationToken).ConfigureAwait(false);
+		var response = await _transport.SendAsync("login", parameters, cancellationToken).ConfigureAwait(false);
 
 		if (response.IsSuccess && !string.IsNullOrWhiteSpace(response.AuthSid))
 		{
@@ -68,11 +66,9 @@ public class JokerClient : IDisposable
 	/// <returns>The logout response</returns>
 	public async Task<DmapiResponse> LogoutAsync(CancellationToken cancellationToken)
 	{
-		var parameters = new Dictionary<string, string>();
-
-		AddAuthParameters(parameters);
-
-		var response = await SendRequestAsync("logout", parameters, cancellationToken).ConfigureAwait(false);
+		var response = await _transport
+			.SendAsync("logout", AddAuthParameters(new DmapiParameters()), cancellationToken)
+			.ConfigureAwait(false);
 
 		if (response.IsSuccess)
 		{
@@ -97,31 +93,14 @@ public class JokerClient : IDisposable
 		bool showGrants,
 		bool showJokerNs,
 		CancellationToken cancellationToken)
-	{
-		var parameters = new Dictionary<string, string>();
-		
-		if (!string.IsNullOrWhiteSpace(pattern))
-		{
-			parameters["pattern"] = pattern;
-		}
-		
-		if (showStatus)
-		{
-			parameters["showstatus"] = "1";
-		}
-		
-		if (showGrants)
-		{
-			parameters["showgrants"] = "1";
-		}
-		
-		if (showJokerNs)
-		{
-			parameters["showjokerns"] = "1";
-		}
-
-		return await SendAuthenticatedRequestAsync("query-domain-list", parameters, cancellationToken).ConfigureAwait(false);
-	}
+		=> await SendAuthenticatedRequestAsync(
+			"query-domain-list",
+			new DmapiParameters()
+				.SetIfPresent("pattern", pattern)
+				.SetIfEnabled("showstatus", showStatus)
+				.SetIfEnabled("showgrants", showGrants)
+				.SetIfEnabled("showjokerns", showJokerNs),
+			cancellationToken).ConfigureAwait(false);
 
 	/// <summary>
 	/// Queries the list of contact handles
@@ -136,26 +115,13 @@ public class JokerClient : IDisposable
 		string? tld,
 		bool extendedFormat,
 		CancellationToken cancellationToken)
-	{
-		var parameters = new Dictionary<string, string>();
-		
-		if (!string.IsNullOrWhiteSpace(pattern))
-		{
-			parameters["pattern"] = pattern;
-		}
-		
-		if (!string.IsNullOrWhiteSpace(tld))
-		{
-			parameters["tld"] = tld;
-		}
-		
-		if (extendedFormat)
-		{
-			parameters["extended-format"] = "1";
-		}
-
-		return await SendAuthenticatedRequestAsync("query-contact-list", parameters, cancellationToken).ConfigureAwait(false);
-	}
+		=> await SendAuthenticatedRequestAsync(
+			"query-contact-list",
+			new DmapiParameters()
+				.SetIfPresent("pattern", pattern)
+				.SetIfPresent("tld", tld)
+				.SetIfEnabled("extended-format", extendedFormat),
+			cancellationToken).ConfigureAwait(false);
 
 	/// <summary>
 	/// Queries the list of nameserver/host handles
@@ -168,21 +134,12 @@ public class JokerClient : IDisposable
 		string? pattern,
 		bool includeIps,
 		CancellationToken cancellationToken)
-	{
-		var parameters = new Dictionary<string, string>();
-		
-		if (!string.IsNullOrWhiteSpace(pattern))
-		{
-			parameters["pattern"] = pattern;
-		}
-		
-		if (includeIps)
-		{
-			parameters["full"] = "1";
-		}
-
-		return await SendAuthenticatedRequestAsync("query-ns-list", parameters, cancellationToken).ConfigureAwait(false);
-	}
+		=> await SendAuthenticatedRequestAsync(
+			"query-ns-list",
+			new DmapiParameters()
+				.SetIfPresent("pattern", pattern)
+				.SetIfEnabled("full", includeIps),
+			cancellationToken).ConfigureAwait(false);
 
 	/// <summary>
 	/// Queries reseller profile data (including account balance)
@@ -190,11 +147,10 @@ public class JokerClient : IDisposable
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>The profile response</returns>
 	public async Task<DmapiResponse> QueryProfileAsync(CancellationToken cancellationToken)
-	{
-		var parameters = new Dictionary<string, string>();
-
-		return await SendAuthenticatedRequestAsync("query-profile", parameters, cancellationToken).ConfigureAwait(false);
-	}
+		=> await SendAuthenticatedRequestAsync(
+			"query-profile",
+			new DmapiParameters(),
+			cancellationToken).ConfigureAwait(false);
 
 	/// <summary>
 	/// Lists results from asynchronous requests
@@ -209,26 +165,13 @@ public class JokerClient : IDisposable
 		bool showAll,
 		int? period,
 		CancellationToken cancellationToken)
-	{
-		var parameters = new Dictionary<string, string>();
-		
-		if (pending)
-		{
-			parameters["pending"] = "1";
-		}
-		
-		if (showAll)
-		{
-			parameters["showall"] = "1";
-		}
-		
-		if (period.HasValue)
-		{
-			parameters["period"] = period.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
-		}
-
-		return await SendAuthenticatedRequestAsync("result-list", parameters, cancellationToken).ConfigureAwait(false);
-	}
+		=> await SendAuthenticatedRequestAsync(
+			"result-list",
+			new DmapiParameters()
+				.SetIfEnabled("pending", pending)
+				.SetIfEnabled("showall", showAll)
+				.SetIfPresent("period", period),
+			cancellationToken).ConfigureAwait(false);
 
 	/// <summary>
 	/// Retrieves result from an asynchronous request
@@ -246,20 +189,13 @@ public class JokerClient : IDisposable
 		{
 			throw new ArgumentException("Either procId or svTrId must be provided");
 		}
-		
-		var parameters = new Dictionary<string, string>();
-		
-		if (!string.IsNullOrWhiteSpace(procId))
-		{
-			parameters["proc-id"] = procId;
-		}
-		
-		if (!string.IsNullOrWhiteSpace(svTrId))
-		{
-			parameters["svtrid"] = svTrId;
-		}
 
-		return await SendAuthenticatedRequestAsync("result-retrieve", parameters, cancellationToken).ConfigureAwait(false);
+		return await SendAuthenticatedRequestAsync(
+			"result-retrieve",
+			new DmapiParameters()
+				.SetIfPresent("proc-id", procId)
+				.SetIfPresent("svtrid", svTrId),
+			cancellationToken).ConfigureAwait(false);
 	}
 
 	/// <summary>
@@ -276,13 +212,13 @@ public class JokerClient : IDisposable
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(domain);
 		ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
-		var parameters = new Dictionary<string, string>
-		{
-			["domain"] = domain,
-			["pname"] = propertyName
-		};
 
-		return await SendAuthenticatedRequestAsync("domain-get-property", parameters, cancellationToken).ConfigureAwait(false);
+		return await SendAuthenticatedRequestAsync(
+			"domain-get-property",
+			new DmapiParameters()
+				.Set("domain", domain)
+				.Set("pname", propertyName),
+			cancellationToken).ConfigureAwait(false);
 	}
 
 	/// <summary>
@@ -294,12 +230,11 @@ public class JokerClient : IDisposable
 	public async Task<DmapiResponse> QueryWhoisAsync(string domain, CancellationToken cancellationToken)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-		var parameters = new Dictionary<string, string>
-		{
-			["domain"] = domain
-		};
 
-		return await SendAuthenticatedRequestAsync("query-whois", parameters, cancellationToken).ConfigureAwait(false);
+		return await SendAuthenticatedRequestAsync(
+			"query-whois",
+			new DmapiParameters().Set("domain", domain),
+			cancellationToken).ConfigureAwait(false);
 	}
 
 	/// <summary>
@@ -310,18 +245,7 @@ public class JokerClient : IDisposable
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>The registration response</returns>
 	public async Task<DmapiResponse> DomainRegisterAsync(string domain, int period, CancellationToken cancellationToken)
-	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-		ArgumentOutOfRangeException.ThrowIfLessThan(period, 1);
-		ArgumentOutOfRangeException.ThrowIfGreaterThan(period, 10);
-		var parameters = new Dictionary<string, string>
-		{
-			["domain"] = domain,
-			["period"] = period.ToString(System.Globalization.CultureInfo.InvariantCulture)
-		};
-
-		return await SendAuthenticatedRequestAsync("domain-register", parameters, cancellationToken).ConfigureAwait(false);
-	}
+		=> await SendDomainPeriodRequestAsync("domain-register", domain, period, cancellationToken).ConfigureAwait(false);
 
 	/// <summary>
 	/// Renews a domain
@@ -331,18 +255,7 @@ public class JokerClient : IDisposable
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>The renewal response</returns>
 	public async Task<DmapiResponse> DomainRenewAsync(string domain, int period, CancellationToken cancellationToken)
-	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-		ArgumentOutOfRangeException.ThrowIfLessThan(period, 1);
-		ArgumentOutOfRangeException.ThrowIfGreaterThan(period, 10);
-		var parameters = new Dictionary<string, string>
-		{
-			["domain"] = domain,
-			["period"] = period.ToString(System.Globalization.CultureInfo.InvariantCulture)
-		};
-
-		return await SendAuthenticatedRequestAsync("domain-renew", parameters, cancellationToken).ConfigureAwait(false);
-	}
+		=> await SendDomainPeriodRequestAsync("domain-renew", domain, period, cancellationToken).ConfigureAwait(false);
 
 	/// <summary>
 	/// Transfers a domain to this account
@@ -355,13 +268,39 @@ public class JokerClient : IDisposable
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(domain);
 		ArgumentException.ThrowIfNullOrWhiteSpace(authCode);
-		var parameters = new Dictionary<string, string>
-		{
-			["domain"] = domain,
-			["auth-code"] = authCode
-		};
 
-		return await SendAuthenticatedRequestAsync("domain-transfer", parameters, cancellationToken).ConfigureAwait(false);
+		return await SendAuthenticatedRequestAsync(
+			"domain-transfer",
+			new DmapiParameters()
+				.Set("domain", domain)
+				.Set("auth-code", authCode),
+			cancellationToken).ConfigureAwait(false);
+	}
+
+	/// <summary>
+	/// Sends a request taking a validated domain and period, such as register and renew
+	/// </summary>
+	/// <param name="requestName">The request name (e.g., "domain-register")</param>
+	/// <param name="domain">Domain name</param>
+	/// <param name="period">Period in years (1-10)</param>
+	/// <param name="cancellationToken">Cancellation token</param>
+	/// <returns>The parsed DMAPI response</returns>
+	private async Task<DmapiResponse> SendDomainPeriodRequestAsync(
+		string requestName,
+		string domain,
+		int period,
+		CancellationToken cancellationToken)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+		ArgumentOutOfRangeException.ThrowIfLessThan(period, 1);
+		ArgumentOutOfRangeException.ThrowIfGreaterThan(period, 10);
+
+		return await SendAuthenticatedRequestAsync(
+			requestName,
+			new DmapiParameters()
+				.Set("domain", domain)
+				.Set("period", period),
+			cancellationToken).ConfigureAwait(false);
 	}
 
 	/// <summary>
@@ -374,7 +313,7 @@ public class JokerClient : IDisposable
 		{
 			return;
 		}
-		
+
 		// If not authenticated yet and using username/password, login now
 		if (string.IsNullOrWhiteSpace(_authSid))
 		{
@@ -391,17 +330,11 @@ public class JokerClient : IDisposable
 	/// Adds the credential parameter (session ID, or API key when no session is held) to a request
 	/// </summary>
 	/// <param name="parameters">The parameters to add the credential to</param>
-	private void AddAuthParameters(Dictionary<string, string> parameters)
-	{
-		if (!string.IsNullOrWhiteSpace(_authSid))
-		{
-			parameters["auth-sid"] = _authSid;
-		}
-		else if (!string.IsNullOrWhiteSpace(_options.ApiKey))
-		{
-			parameters["api-key"] = _options.ApiKey;
-		}
-	}
+	/// <returns>The same parameters, for chaining</returns>
+	private DmapiParameters AddAuthParameters(DmapiParameters parameters)
+		=> string.IsNullOrWhiteSpace(_authSid)
+			? parameters.SetIfPresent("api-key", _options.ApiKey)
+			: parameters.Set("auth-sid", _authSid);
 
 	/// <summary>
 	/// Ensures the client is authenticated, adds the credential parameter and sends the request
@@ -412,69 +345,27 @@ public class JokerClient : IDisposable
 	/// <returns>The parsed DMAPI response</returns>
 	private async Task<DmapiResponse> SendAuthenticatedRequestAsync(
 		string requestName,
-		Dictionary<string, string> parameters,
+		DmapiParameters parameters,
 		CancellationToken cancellationToken)
 	{
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 
-		AddAuthParameters(parameters);
-
-		return await SendRequestAsync(requestName, parameters, cancellationToken).ConfigureAwait(false);
+		return await _transport
+			.SendAsync(requestName, AddAuthParameters(parameters), cancellationToken)
+			.ConfigureAwait(false);
 	}
 
 	/// <summary>
-	/// Sends a request to the DMAPI
-	/// </summary>
-	/// <param name="requestName">The request name (e.g., "login", "query-domain-list")</param>
-	/// <param name="parameters">Request parameters</param>
-	/// <param name="cancellationToken">Cancellation token</param>
-	/// <returns>The parsed DMAPI response</returns>
-	private async Task<DmapiResponse> SendRequestAsync(
-		string requestName,
-		Dictionary<string, string>? parameters,
-		CancellationToken cancellationToken)
-	{
-		var url = DmapiRequestUrlBuilder.Build(requestName, parameters);
-
-		if (_options.EnableRequestLogging)
-		{
-			_options.Logger?.LogDmapiRequest("GET", url);
-		}
-
-		var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
-		var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-		if (_options.EnableResponseLogging)
-		{
-			_options.Logger?.LogDmapiResponse(content);
-		}
-
-		return DmapiResponseParser.Parse(content);
-	}
-
-	/// <summary>
-	/// Disposes the client and releases resources
-	/// </summary>
-	public void Dispose()
-	{
-		Dispose(true);
-		GC.SuppressFinalize(this);
-	}
-
-	/// <summary>
-	/// Disposes the client and releases resources
+	/// Disposes the resources held by the client
 	/// </summary>
 	/// <param name="disposing">Whether to dispose managed resources</param>
-	protected virtual void Dispose(bool disposing)
+	protected override void Dispose(bool disposing)
 	{
-		if (!_disposed)
+		if (disposing)
 		{
-			if (disposing)
-			{
-				_httpClient?.Dispose();
-			}
-
-			_disposed = true;
+			_transport.Dispose();
 		}
+
+		base.Dispose(disposing);
 	}
 }

@@ -1,9 +1,9 @@
-namespace Joker.Api;
+﻿namespace Joker.Api;
 
 /// <summary>
 /// Configuration options for the Joker SVC (Service/Dynamic DNS) client
 /// </summary>
-public class JokerSvcClientOptions
+public class JokerSvcClientOptions : IDmapiTransportOptions
 {
 	/// <summary>
 	/// Gets the domain name for SVC access
