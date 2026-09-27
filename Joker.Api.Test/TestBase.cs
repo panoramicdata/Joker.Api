@@ -3,6 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Joker.Api.Test;
 
+// Every test deriving from this base calls the live Joker DMAPI with API keys from user secrets.
+// CI has none, so the coverage job excludes them with --filter "Category!=Integration".
+[Trait("Category", "Integration")]
 public class TestBase<T> where T : class
 {
 	protected readonly IConfiguration _configuration;
