@@ -44,4 +44,9 @@ public class JokerSvcClientOptions : IDmapiTransportOptions
 	/// Gets a value indicating whether response logging is enabled
 	/// </summary>
 	public bool EnableResponseLogging { get; init; }
+
+	/// <summary>
+	/// Gets or sets a value indicating whether the client refuses every request that could change anything at Joker, before it is sent. Defaults to false
+	/// </summary>
+	public bool IsReadOnly { get; set; }
 }

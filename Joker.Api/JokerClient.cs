@@ -348,6 +348,8 @@ public class JokerClient : JokerClientBase
 		DmapiParameters parameters,
 		CancellationToken cancellationToken)
 	{
+		_transport.ThrowIfRefused(requestName);
+
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 
 		return await _transport
