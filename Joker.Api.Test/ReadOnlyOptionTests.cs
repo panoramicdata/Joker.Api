@@ -190,7 +190,7 @@ public sealed class ReadOnlyOptionTests : IDisposable
 
 		lock (_requests)
 		{
-			_requests.Add(received.ToString());
+			_requests.Add(received.ToString().Split((char)13)[0]);
 		}
 
 		const string body = "Status-Code: 0\nStatus-Text: ok\nResult: ACK\nAuth-Sid: stub-session\n\n";
