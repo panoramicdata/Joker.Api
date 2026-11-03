@@ -134,8 +134,8 @@ public sealed class ReadOnlyOptionTests : IDisposable
 		using var transport = new DmapiTransport(
 			new JokerClientOptions { ApiKey = "k", BaseUrl = BaseUrl, IsReadOnly = true },
 			"Test Agent",
-			static (log, method, url) => log.LogDmapiRequest(method, url),
-			static (log, content) => log.LogDmapiResponse(content));
+			static (_, _, _) => { },
+			static (_, _) => { });
 
 		var act = () => transport.ThrowIfRefused(requestName);
 
