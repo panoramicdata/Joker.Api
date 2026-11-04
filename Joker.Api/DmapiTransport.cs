@@ -14,6 +14,17 @@ internal sealed class DmapiTransport : IDisposable
 	private readonly Action<ILogger, string> _logResponse;
 	private bool _disposed;
 
+	// Session and read-only DMAPI requests; query-* requests are all reads and are matched by prefix
+	private static readonly HashSet<string> ReadRequests = new(StringComparer.Ordinal)
+	{
+		"login",
+		"logout",
+		"result-list",
+		"result-retrieve",
+		"domain-get-property",
+		"dns-zone-get"
+	};
+
 	/// <summary>
 	/// Initializes a new instance of the <see cref="DmapiTransport"/> class
 	/// </summary>
@@ -52,6 +63,8 @@ internal sealed class DmapiTransport : IDisposable
 		DmapiParameters parameters,
 		CancellationToken cancellationToken)
 	{
+		ThrowIfRefused(requestName);
+
 		var url = DmapiRequestUrlBuilder.Build(requestName, parameters.Values);
 
 		if (_options.EnableRequestLogging && _options.Logger is not null)
@@ -69,6 +82,28 @@ internal sealed class DmapiTransport : IDisposable
 
 		return DmapiResponseParser.Parse(content);
 	}
+
+	/// <summary>
+	/// Throws if the client is read-only and <paramref name="requestName"/> is not a known read
+	/// </summary>
+	/// <remarks>
+	/// DMAPI sends every request as a GET, so the HTTP method cannot tell a read from a write; the request name does.
+	/// Anything not listed is refused, so a request added later is blocked until it is classified.
+	/// </remarks>
+	/// <param name="requestName">The DMAPI request name</param>
+	/// <exception cref="InvalidOperationException">The client is read-only and the request is not a read</exception>
+	internal void ThrowIfRefused(string requestName)
+	{
+		if (_options.IsReadOnly && !IsRead(requestName))
+		{
+			throw new InvalidOperationException(
+				$"The client is read-only, so the DMAPI request {requestName} was not sent.");
+		}
+	}
+
+	private static bool IsRead(string requestName)
+		=> ReadRequests.Contains(requestName)
+		|| requestName.StartsWith("query-", StringComparison.Ordinal);
 
 	/// <summary>
 	/// Disposes the underlying <see cref="HttpClient"/>

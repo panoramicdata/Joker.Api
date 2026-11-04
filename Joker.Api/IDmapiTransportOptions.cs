@@ -31,4 +31,9 @@ internal interface IDmapiTransportOptions
 	/// Whether incoming responses are logged
 	/// </summary>
 	bool EnableResponseLogging { get; }
+
+	/// <summary>
+	/// Whether requests that change anything at Joker are refused before they are sent
+	/// </summary>
+	bool IsReadOnly { get; }
 }

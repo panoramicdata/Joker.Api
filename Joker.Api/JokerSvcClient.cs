@@ -92,6 +92,8 @@ public class JokerSvcClient : JokerClientBase
 	/// <returns>The response from the DNS zone update</returns>
 	public async Task<DmapiResponse> SetDnsZoneAsync(IEnumerable<DnsRecord> records, CancellationToken cancellationToken)
 	{
+		_transport.ThrowIfRefused("dns-zone-put");
+
 		await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
 
 		var recordList = records as ICollection<DnsRecord> ?? [.. records];

@@ -56,6 +56,11 @@ public class JokerClientOptions : IDmapiTransportOptions
 	public bool EnableResponseLogging { get; init; }
 
 	/// <summary>
+	/// Gets or sets a value indicating whether the client refuses every request that could change anything at Joker, before it is sent. Defaults to false
+	/// </summary>
+	public bool IsReadOnly { get; set; }
+
+	/// <summary>
 	/// Gets a value indicating whether to use exponential backoff for retries
 	/// </summary>
 	public bool UseExponentialBackoff { get; init; } = true;
