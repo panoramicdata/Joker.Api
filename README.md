@@ -6,6 +6,8 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/c790c2232f2745eca8b5b47a145e37b9)](https://app.codacy.com/gh/panoramicdata/Joker.Api/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+> **Need help with APIs or .NET?** Panoramic Data are experts in APIs and .NET, and we can help with your development. [Contact us](https://www.panoramicdata.com/contact-us) or see our [software services](https://www.panoramicdata.com/services/software).
+
 A comprehensive, modern .NET library for interacting with the Joker DMAPI API. This library provides full coverage of the Joker DMAPI API with a clean, intuitive interface using modern C# patterns and best practices.
 
 Supports .NET 11.0.
